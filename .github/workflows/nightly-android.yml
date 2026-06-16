@@ -110,6 +110,6 @@ jobs:
             apps/readest-app/${arm64_apk} \
             apps/readest-app/${universal_apk}.sig \
             apps/readest-app/${arm64_apk}.sig \
-            --title "Nightly Build" \
+            --title "Nightly Build ($(data))" \
             --notes "Nightly build from develop branch. Built on $(date)" \
             --prerelease
