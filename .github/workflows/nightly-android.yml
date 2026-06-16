@@ -3,7 +3,7 @@ name: Nightly Android Build
 on:
   push:
     branches:
-      - ci-nightly-android-apk-15879380857781425699
+      - develop
   workflow_dispatch:
 
 permissions:
