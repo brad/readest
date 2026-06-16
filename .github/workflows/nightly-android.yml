@@ -75,7 +75,6 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
         run: |
-          set -ex
           cd apps/readest-app/
           rm -rf src-tauri/gen/android
           pnpm tauri android init
