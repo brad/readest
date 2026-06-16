@@ -296,6 +296,8 @@ export interface TTSConfig {
   showTTSBar: boolean;
   ttsHighlightOptions: TTSHighlightOptions;
   ttsMediaMetadata: TTSMediaMetadataMode;
+  geminiTtsEnabled: boolean;
+  geminiTtsApiKey: string;
 }
 
 export interface TranslatorConfig {
