@@ -95,9 +95,9 @@ jobs:
           arm64_apk=Readest_${version}_arm64.apk
 
           pnpm tauri android build
-          cp ${apk_path}/app-universal-release.apk ../../${universal_apk}
+          cp ${apk_path}/app-universal-release.apk ${universal_apk}
           pnpm tauri android build -t aarch64
-          cp ${apk_path}/app-universal-release.apk ../../${arm64_apk}
+          cp ${apk_path}/app-universal-release.apk ${arm64_apk}
 
           cd ../../
           pnpm tauri signer sign ${universal_apk}
