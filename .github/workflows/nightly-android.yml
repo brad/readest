@@ -106,7 +106,11 @@ jobs:
           # Re-create the nightly release
           gh release delete nightly --yes --cleanup-tag || true
 
-          gh release create nightly ${universal_apk} ${arm64_apk} ${universal_apk}.sig ${arm64_apk}.sig \
+          gh release create nightly \
+            apps/readest-app/${universal_apk} \
+            apps/readest-app/${arm64_apk} \
+            apps/readest-app/${universal_apk}.sig \
+            apps/readest-app/${arm64_apk}.sig \
             --title "Nightly Build" \
             --notes "Nightly build from develop branch. Built on $(date)" \
             --prerelease
