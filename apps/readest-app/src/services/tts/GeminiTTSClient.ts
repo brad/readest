@@ -11,7 +11,6 @@ export class GeminiTTSClient implements TTSClient {
   #speakingLang = '';
   #currentVoiceId = 'Puck';
   #rate = 1.0;
-  #pitch = 1.0;
 
   #audioElement: HTMLAudioElement | null = null;
   #isPlaying = false;
@@ -80,7 +79,7 @@ export class GeminiTTSClient implements TTSClient {
             resolve({ code: 'end', message: `Chunk finished: ${mark.name}` });
           };
 
-          const handleError = (e: any) => {
+          const handleError = (e: string | Event) => {
             cleanUp();
             console.error('Gemini TTS playback error:', e);
             resolve({ code: 'error', message: 'Audio playback error' });
@@ -109,7 +108,6 @@ export class GeminiTTSClient implements TTSClient {
 
         yield result;
         if (result.code === 'error') break;
-
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error('Gemini TTS error:', error);
@@ -128,26 +126,30 @@ export class GeminiTTSClient implements TTSClient {
       body: JSON.stringify({
         contents: [{ parts: [{ text }] }],
         generationConfig: {
-          response_modalities: ["AUDIO"],
+          response_modalities: ['AUDIO'],
           speech_config: {
             voice_config: {
               prebuilt_voice_config: {
-                voice_name: this.#currentVoiceId
-              }
-            }
-          }
-        }
+                voice_name: this.#currentVoiceId,
+              },
+            },
+          },
+        },
       }),
-      signal
+      signal,
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Gemini API error: ${response.status} ${errorData.error?.message || response.statusText}`);
+      throw new Error(
+        `Gemini API error: ${response.status} ${errorData.error?.message || response.statusText}`,
+      );
     }
 
     const data = await response.json();
-    const audioBase64 = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData?.data;
+    const audioBase64 = data.candidates?.[0]?.content?.parts?.find(
+      (p: { inlineData?: { data: string } }) => p.inlineData,
+    )?.inlineData?.data;
 
     if (!audioBase64) {
       throw new Error('No audio data received from Gemini');
@@ -209,9 +211,7 @@ export class GeminiTTSClient implements TTSClient {
     }
   }
 
-  async setPitch(pitch: number) {
-    this.#pitch = pitch;
-  }
+  async setPitch(_pitch: number) {}
 
   async setVoice(voice: string) {
     if (voice) {
@@ -229,14 +229,16 @@ export class GeminiTTSClient implements TTSClient {
     ];
   }
 
-  async getVoices(lang: string): Promise<TTSVoicesGroup[]> {
+  async getVoices(_lang: string): Promise<TTSVoicesGroup[]> {
     const voices = await this.getAllVoices();
-    return [{
-      id: 'gemini-tts',
-      name: 'Gemini TTS',
-      voices: voices,
-      disabled: !this.initialized
-    }];
+    return [
+      {
+        id: 'gemini-tts',
+        name: 'Gemini TTS',
+        voices: voices,
+        disabled: !this.initialized,
+      },
+    ];
   }
 
   getGranularities(): TTSGranularity[] {
