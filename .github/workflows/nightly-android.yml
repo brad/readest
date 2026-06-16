@@ -1,0 +1,115 @@
+name: Nightly Android Build
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: initialize git submodules
+        run: git submodule update --init --recursive
+
+      - name: setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: install NDK
+        run: sdkmanager "ndk;28.2.13676358"
+
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: copy pdfjs-dist and simplecc-dist to public directory
+        run: pnpm --filter @readest/readest-app setup-vendors
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: android-cargo
+
+      - name: Update version with nightly suffix
+        run: |
+          cd apps/readest-app/
+          date_suffix=$(date +'%Y%m%d')
+          jq ".version = .version + \"-nightly.$date_suffix\"" package.json > package.json.tmp && mv package.json.tmp package.json
+          cat package.json | grep version
+
+      - name: Build Android APK
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
+        run: |
+          cd apps/readest-app/
+          rm -rf src-tauri/gen/android
+          pnpm tauri android init
+          pnpm tauri icon ../../data/icons/readest-book.png
+          git checkout .
+
+          pushd src-tauri/gen/android
+          echo "keyAlias=${ANDROID_KEY_ALIAS}" > keystore.properties
+          echo "password=${ANDROID_KEY_PASSWORD}" >> keystore.properties
+          base64 -d <<< "${ANDROID_KEY_BASE64}" > $RUNNER_TEMP/keystore.jks
+          echo "storeFile=$RUNNER_TEMP/keystore.jks" >> keystore.properties
+          popd
+
+          version=$(node -p "require('./package.json').version")
+          apk_path=src-tauri/gen/android/app/build/outputs/apk/universal/release
+          universal_apk=Readest_${version}_universal.apk
+          arm64_apk=Readest_${version}_arm64.apk
+
+          pnpm tauri android build
+          cp ${apk_path}/app-universal-release.apk ${universal_apk}
+          pnpm tauri android build -t aarch64
+          cp ${apk_path}/app-universal-release.apk ${arm64_apk}
+
+          cd ../../
+          pnpm tauri signer sign ${universal_apk}
+          pnpm tauri signer sign ${arm64_apk}
+
+          # Re-create the nightly release
+          gh release delete nightly --yes --cleanup-tag || true
+
+          gh release create nightly \
+            apps/readest-app/${universal_apk} \
+            apps/readest-app/${arm64_apk} \
+            apps/readest-app/${universal_apk}.sig \
+            apps/readest-app/${arm64_apk}.sig \
+            --title "Nightly Build ($(data))" \
+            --notes "Nightly build from develop branch. Built on $(date)" \
+            --prerelease
