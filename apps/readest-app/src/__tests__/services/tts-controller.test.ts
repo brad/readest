@@ -144,6 +144,7 @@ function createMockView(): FoliateView {
 function createMockAppService(isAndroid = false): AppService {
   return {
     isAndroidApp: isAndroid,
+    getSettings: vi.fn().mockReturnValue({ globalViewSettings: { geminiTtsApiKey: '' } }),
   } as unknown as AppService;
 }
 
