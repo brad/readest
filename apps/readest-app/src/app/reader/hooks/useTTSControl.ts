@@ -519,6 +519,7 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
           preprocessSSMLForTTS,
           handleSectionChange,
           viewSettings.geminiTtsApiKey,
+          viewSettings.geminiTtsEnabled,
         );
         ttsControllerRef.current = ttsController;
         setTtsController(ttsController);
@@ -541,6 +542,7 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
 
           ttsController.setLang(lang);
           ttsController.setRate(viewSettings.ttsRate);
+          await ttsController.setVoice(viewSettings.ttsVoice, lang);
           ttsController.speak(ssml, oneTime, () => handleStop(bookKey));
           ttsController.setTargetLang(getTTSTargetLang() || '');
         }

@@ -159,7 +159,15 @@ describe('TTSController', () => {
     vi.clearAllMocks();
     mockView = createMockView();
     mockAppService = createMockAppService();
-    controller = new TTSController(mockAppService, mockView, false);
+    controller = new TTSController(
+      mockAppService,
+      mockView,
+      false,
+      undefined,
+      undefined,
+      '',
+      false,
+    );
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -189,7 +197,15 @@ describe('TTSController', () => {
 
     test('sets isAuthenticated', () => {
       expect(controller.isAuthenticated).toBe(false);
-      const authed = new TTSController(mockAppService, mockView, true);
+      const authed = new TTSController(
+        mockAppService,
+        mockView,
+        true,
+        undefined,
+        undefined,
+        '',
+        false,
+      );
       expect(authed.isAuthenticated).toBe(true);
     });
 
@@ -211,7 +227,7 @@ describe('TTSController', () => {
 
     test('creates native client when isAndroidApp', () => {
       const androidService = createMockAppService(true);
-      const c = new TTSController(androidService, mockView);
+      const c = new TTSController(androidService, mockView, false, undefined, undefined, '', false);
       expect(c.ttsNativeClient).not.toBeNull();
     });
 
@@ -221,13 +237,13 @@ describe('TTSController', () => {
 
     test('stores preprocessCallback', () => {
       const cb = vi.fn();
-      const c = new TTSController(mockAppService, mockView, false, cb);
+      const c = new TTSController(mockAppService, mockView, false, cb, undefined, '', false);
       expect(c.preprocessCallback).toBe(cb);
     });
 
     test('stores onSectionChange callback', () => {
       const cb = vi.fn();
-      const c = new TTSController(mockAppService, mockView, false, undefined, cb);
+      const c = new TTSController(mockAppService, mockView, false, undefined, cb, '', false);
       expect(c.onSectionChange).toBe(cb);
     });
   });
@@ -268,7 +284,7 @@ describe('TTSController', () => {
 
     test('also initializes native client on Android', async () => {
       const androidService = createMockAppService(true);
-      const c = new TTSController(androidService, mockView);
+      const c = new TTSController(androidService, mockView, false, undefined, undefined, '', false);
       await c.init();
       expect(c.ttsNativeClient!.init).toHaveBeenCalled();
       expect(c.ttsNativeClient!.getAllVoices).toHaveBeenCalled();
@@ -308,7 +324,7 @@ describe('TTSController', () => {
 
     test('switches to native client when voice found in native voices', async () => {
       const androidService = createMockAppService(true);
-      const c = new TTSController(androidService, mockView);
+      const c = new TTSController(androidService, mockView, false, undefined, undefined, '', false);
       await c.init();
       c.ttsNativeVoices = [{ id: 'native-v', name: 'Native', lang: 'en-US' }];
       await c.setVoice('native-v', 'en');
@@ -366,7 +382,7 @@ describe('TTSController', () => {
 
     test('includes native voices when available', async () => {
       const androidService = createMockAppService(true);
-      const c = new TTSController(androidService, mockView);
+      const c = new TTSController(androidService, mockView, false, undefined, undefined, '', false);
       await c.init();
 
       const nativeVoices: TTSVoicesGroup[] = [
@@ -621,7 +637,7 @@ describe('TTSController', () => {
 
     test('shuts down native client when initialized', async () => {
       const androidService = createMockAppService(true);
-      const c = new TTSController(androidService, mockView);
+      const c = new TTSController(androidService, mockView, false, undefined, undefined, '', false);
       await c.init();
       c.ttsNativeClient!.initialized = true;
 
@@ -818,5 +834,44 @@ describe('TTSController', () => {
       controller.dispatchEvent(new CustomEvent('test-event', { detail: 'data' }));
       expect(handler).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('TTSController with Gemini', () => {
+  let mockView: FoliateView;
+  let mockAppService: AppService;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockView = createMockView();
+    mockAppService = createMockAppService();
+  });
+
+  test('does not initialize Gemini client when disabled even if API key is present', async () => {
+    const controller = new TTSController(
+      mockAppService,
+      mockView,
+      false,
+      undefined,
+      undefined,
+      'api-key',
+      false,
+    );
+    await controller.init();
+    expect(controller.ttsGeminiClient).toBeNull();
+  });
+
+  test('initializes Gemini client when enabled and API key is present', async () => {
+    const controller = new TTSController(
+      mockAppService,
+      mockView,
+      false,
+      undefined,
+      undefined,
+      'api-key',
+      true,
+    );
+    await controller.init();
+    expect(controller.ttsGeminiClient).not.toBeNull();
   });
 });
