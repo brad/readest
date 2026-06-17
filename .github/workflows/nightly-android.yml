@@ -57,13 +57,6 @@ jobs:
         with:
           key: android-cargo
 
-      - name: Update version with nightly suffix
-        run: |
-          cd apps/readest-app/
-          date_suffix=$(date +'%Y%m%d')
-          jq ".version = .version + \"-nightly.$date_suffix\"" package.json > package.json.tmp && mv package.json.tmp package.json
-          cat package.json | grep version
-
       - name: Build Android APK
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -80,6 +73,10 @@ jobs:
           pnpm tauri android init
           pnpm tauri icon ../../data/icons/readest-book.png
           git checkout .
+
+          # Update version with nightly suffix after git checkout
+          date_suffix=$(date +'%Y%m%d')
+          jq ".version = .version + \"-nightly.$date_suffix\"" package.json > package.json.tmp && mv package.json.tmp package.json
 
           pushd src-tauri/gen/android
           echo "keyAlias=${ANDROID_KEY_ALIAS}" > keystore.properties
@@ -98,18 +95,24 @@ jobs:
           pnpm tauri android build -t aarch64
           cp ${apk_path}/app-universal-release.apk ${arm64_apk}
 
-          cd ../../
+          # Sign the APKs
           pnpm tauri signer sign ${universal_apk}
           pnpm tauri signer sign ${arm64_apk}
 
-          # Re-create the nightly release
-          gh release delete nightly --yes --cleanup-tag || true
+          cd ../../
+          tag_name="nightly-$date_suffix"
 
-          gh release create nightly \
+          # Delete existing tag if it exists to avoid conflicts, though dated tags should be unique per day
+          gh release delete "$tag_name" --yes --cleanup-tag || true
+
+          # Create dated nightly release
+          gh release create "$tag_name" \
             apps/readest-app/${universal_apk} \
             apps/readest-app/${arm64_apk} \
             apps/readest-app/${universal_apk}.sig \
             apps/readest-app/${arm64_apk}.sig \
-            --title "Nightly Build ($(data))" \
+            --target develop \
+            --repo brad/readest \
+            --title "Nightly Build ($(date +'%Y-%m-%d'))" \
             --notes "Nightly build from develop branch. Built on $(date)" \
             --prerelease
