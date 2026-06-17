@@ -14,13 +14,17 @@ import { isTauriAppPlatform } from '@/services/environment';
 import { useTranslator } from '@/hooks/useTranslator';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSearchParams } from 'next/navigation';
-import { getAppVersion } from '@/utils/version';
+import { getAppVersion, isNightly } from '@/utils/version';
 import { tauriDownload } from '@/utils/transfer';
 import { installPackage } from '@/utils/bridge';
 import { join } from '@tauri-apps/api/path';
 import { getLocale } from '@/utils/misc';
 import { setLastShownReleaseNotesVersion } from '@/helpers/updater';
-import { READEST_UPDATER_FILE, READEST_CHANGELOG_FILE } from '@/services/constants';
+import {
+  READEST_UPDATER_FILE,
+  READEST_CHANGELOG_FILE,
+  GITHUB_NIGHTLY_RELEASES_API,
+} from '@/services/constants';
 import Dialog from '@/components/Dialog';
 import Link from './Link';
 
@@ -109,16 +113,63 @@ export const UpdaterContent = ({
         setUpdate(update);
       }
     };
+    const getUpdaterUrl = async () => {
+      if (!isNightly()) return READEST_UPDATER_FILE;
+      try {
+        const fetch = isTauriAppPlatform() ? tauriFetch : window.fetch;
+        const res = await fetch(GITHUB_NIGHTLY_RELEASES_API);
+        const releases = await res.json();
+        const latestNightly = releases.find(
+          (r: { tag_name: string; assets: { name: string; browser_download_url: string }[] }) =>
+            r.tag_name && r.tag_name.startsWith('nightly-'),
+        );
+        if (latestNightly) {
+          const latestJsonAsset = latestNightly.assets.find(
+            (a: { name: string; browser_download_url: string }) => a.name === 'latest.json',
+          );
+          if (latestJsonAsset) {
+            return latestJsonAsset.browser_download_url;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch nightly updater URL:', e);
+      }
+      return READEST_UPDATER_FILE;
+    };
     const checkAndroidUpdate = async () => {
       if (!appService) return;
       const fetch = isTauriAppPlatform() ? tauriFetch : window.fetch;
-      const response = await fetch(READEST_UPDATER_FILE);
+      const updaterUrl = await getUpdaterUrl();
+      const response = await fetch(updaterUrl);
       const data = await response.json();
       if (semver.gt(data.version, currentVersion)) {
         const OS_ARCH = osArch();
         const platformKey = OS_ARCH === 'aarch64' ? 'android-arm64' : 'android-universal';
         const arch = OS_ARCH === 'aarch64' ? 'arm64' : 'universal';
-        const downloadUrl = data.platforms[platformKey]?.url as string;
+        let downloadUrl = data.platforms[platformKey]?.url as string;
+        if (
+          downloadUrl === 'GITHUB_ASSET_URL_PLACEHOLDER_UNIVERSAL' ||
+          downloadUrl === 'GITHUB_ASSET_URL_PLACEHOLDER_ARM64'
+        ) {
+          try {
+            const fetch = isTauriAppPlatform() ? tauriFetch : window.fetch;
+            const res = await fetch(GITHUB_NIGHTLY_RELEASES_API);
+            const releases = await res.json();
+            const latestNightly = releases.find(
+              (r: { tag_name: string; assets: { name: string; browser_download_url: string }[] }) =>
+                r.tag_name && r.tag_name.startsWith('nightly-'),
+            );
+            if (latestNightly) {
+              const apkAsset = latestNightly.assets.find(
+                (a: { name: string; browser_download_url: string }) =>
+                  a.name.includes(arch) && a.name.endsWith('.apk'),
+              );
+              if (apkAsset) downloadUrl = apkAsset.browser_download_url;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
         const apkFilePath = await appService.resolveFilePath(
           `Readest_${data.version}_${arch}.apk`,
           'Cache',
@@ -209,14 +260,38 @@ export const UpdaterContent = ({
     const checkWindowsPortableUpdate = async () => {
       if (!appService) return;
       const fetch = isTauriAppPlatform() ? tauriFetch : window.fetch;
-      const response = await fetch(READEST_UPDATER_FILE);
+      const updaterUrl = await getUpdaterUrl();
+      const response = await fetch(updaterUrl);
       const data = await response.json();
       if (semver.gt(data.version, currentVersion)) {
         const OS_ARCH = osArch();
         const platformKey =
           OS_ARCH === 'x86_64' ? 'windows-x86_64-portable' : 'windows-aarch64-portable';
         const arch = OS_ARCH === 'x86_64' ? 'x64' : 'arm64';
-        const downloadUrl = data.platforms[platformKey]?.url as string;
+        let downloadUrl = data.platforms[platformKey]?.url as string;
+        if (
+          downloadUrl === 'GITHUB_ASSET_URL_PLACEHOLDER_UNIVERSAL' ||
+          downloadUrl === 'GITHUB_ASSET_URL_PLACEHOLDER_ARM64'
+        ) {
+          try {
+            const fetch = isTauriAppPlatform() ? tauriFetch : window.fetch;
+            const res = await fetch(GITHUB_NIGHTLY_RELEASES_API);
+            const releases = await res.json();
+            const latestNightly = releases.find(
+              (r: { tag_name: string; assets: { name: string; browser_download_url: string }[] }) =>
+                r.tag_name && r.tag_name.startsWith('nightly-'),
+            );
+            if (latestNightly) {
+              const apkAsset = latestNightly.assets.find(
+                (a: { name: string; browser_download_url: string }) =>
+                  a.name.includes(arch) && a.name.endsWith('.apk'),
+              );
+              if (apkAsset) downloadUrl = apkAsset.browser_download_url;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
         const execDir = await invoke<string>('get_executable_dir');
         const exeFileName = `Readest_${data.version}_${arch}-portable.exe`;
         const exeFilePath = await join(execDir, exeFileName);
@@ -245,14 +320,38 @@ export const UpdaterContent = ({
     const checkAppImageUpdate = async () => {
       if (!appService) return;
       const fetch = isTauriAppPlatform() ? tauriFetch : window.fetch;
-      const response = await fetch(READEST_UPDATER_FILE);
+      const updaterUrl = await getUpdaterUrl();
+      const response = await fetch(updaterUrl);
       const data = await response.json();
       if (semver.gt(data.version, currentVersion)) {
         const OS_ARCH = osArch();
         const platformKey =
           OS_ARCH === 'x86_64' ? 'linux-x86_64-appimage' : 'linux-aarch64-appimage';
         const arch = OS_ARCH === 'x86_64' ? 'x86_64' : 'aarch64';
-        const downloadUrl = data.platforms[platformKey]?.url as string;
+        let downloadUrl = data.platforms[platformKey]?.url as string;
+        if (
+          downloadUrl === 'GITHUB_ASSET_URL_PLACEHOLDER_UNIVERSAL' ||
+          downloadUrl === 'GITHUB_ASSET_URL_PLACEHOLDER_ARM64'
+        ) {
+          try {
+            const fetch = isTauriAppPlatform() ? tauriFetch : window.fetch;
+            const res = await fetch(GITHUB_NIGHTLY_RELEASES_API);
+            const releases = await res.json();
+            const latestNightly = releases.find(
+              (r: { tag_name: string; assets: { name: string; browser_download_url: string }[] }) =>
+                r.tag_name && r.tag_name.startsWith('nightly-'),
+            );
+            if (latestNightly) {
+              const apkAsset = latestNightly.assets.find(
+                (a: { name: string; browser_download_url: string }) =>
+                  a.name.includes(arch) && a.name.endsWith('.apk'),
+              );
+              if (apkAsset) downloadUrl = apkAsset.browser_download_url;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
         const appImageFileName = `Readest_${data.version}_${arch}.AppImage`;
         const appImageFilePath = await join(await desktopDir(), appImageFileName);
         setUpdate({

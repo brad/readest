@@ -793,6 +793,7 @@ export const SHARE_CFI_MAX_LENGTH = 512;
 const LATEST_DOWNLOAD_BASE_URL = 'https://download.readest.com/releases';
 
 export const READEST_UPDATER_FILE = `${LATEST_DOWNLOAD_BASE_URL}/latest.json`;
+export const GITHUB_NIGHTLY_RELEASES_API = "https://api.github.com/repos/brad/readest/releases";
 
 export const READEST_CHANGELOG_FILE = `${LATEST_DOWNLOAD_BASE_URL}/release-notes.json`;
 
