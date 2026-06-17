@@ -1,7 +1,13 @@
 import { encodeWav } from '@/utils/audio';
 import { parseSSMLMarks } from '@/utils/ssml';
+import { AppService } from '@/types/system';
 import { TTSClient, TTSMessageEvent } from './TTSClient';
+import { TTSController } from './TTSController';
 import { TTSGranularity, TTSVoice, TTSVoicesGroup } from './types';
+
+interface GeminiTTSPayload {
+  text: string;
+}
 
 export class GeminiTTSClient implements TTSClient {
   name = 'gemini-tts';
@@ -15,9 +21,15 @@ export class GeminiTTSClient implements TTSClient {
 
   #audioElement: HTMLAudioElement | null = null;
   #isPlaying = false;
+  controller: TTSController | null = null;
+  appService: AppService | null = null;
 
-  constructor(apiKey: string) {
+  #audioCache = new Map<string, string>();
+
+  constructor(apiKey: string, controller?: TTSController, appService?: AppService | null) {
     this.#apiKey = apiKey;
+    this.controller = controller ?? null;
+    this.appService = appService ?? null;
     if (apiKey) {
       this.initialized = true;
     }
@@ -31,7 +43,44 @@ export class GeminiTTSClient implements TTSClient {
   async shutdown(): Promise<void> {
     await this.stop();
     this.initialized = false;
+    this.#audioElement = null;
+    this.#audioCache.forEach((url) => URL.revokeObjectURL(url));
+    this.#audioCache.clear();
   }
+
+  #getPayload = (text: string) => {
+    return { text } as GeminiTTSPayload;
+  };
+
+  #createAudioUrlWithRetry = async (
+    payload: GeminiTTSPayload,
+    signal: AbortSignal,
+    maxAttempts = 3,
+  ): Promise<string | undefined> => {
+    const cacheKey = payload.text;
+    if (this.#audioCache.has(cacheKey)) {
+      return this.#audioCache.get(cacheKey);
+    }
+
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      if (signal.aborted) return undefined;
+      try {
+        const url = await this.#fetchGeminiAudio(payload.text, signal);
+        if (url) {
+          this.#audioCache.set(cacheKey, url);
+        }
+        return url || undefined;
+      } catch (err) {
+        lastError = err;
+        console.warn(`Gemini TTS fetch attempt ${attempt}/${maxAttempts} failed`, err);
+        if (attempt < maxAttempts && !signal.aborted) {
+          await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+        }
+      }
+    }
+    throw lastError;
+  };
 
   async *speak(ssml: string, signal: AbortSignal, preload = false) {
     if (!this.#apiKey) {
@@ -42,22 +91,53 @@ export class GeminiTTSClient implements TTSClient {
     const { marks } = parseSSMLMarks(ssml, this.#primaryLang);
 
     if (preload) {
+      const maxImmediate = 2;
+      for (let i = 0; i < Math.min(maxImmediate, marks.length); i++) {
+        if (signal.aborted) break;
+        const mark = marks[i]!;
+        try {
+          await this.#createAudioUrlWithRetry(this.#getPayload(mark.text), signal);
+        } catch (err) {
+          console.warn('Error preloading Gemini mark', i, err);
+        }
+      }
+      if (marks.length > maxImmediate) {
+        (async () => {
+          for (let i = maxImmediate; i < marks.length; i++) {
+            if (signal.aborted) break;
+            const mark = marks[i]!;
+            try {
+              await this.#createAudioUrlWithRetry(this.#getPayload(mark.text), signal);
+            } catch (err) {
+              console.warn('Error preloading Gemini mark (bg)', i, err);
+            }
+          }
+        })();
+      }
+
       yield { code: 'end', message: 'Preload finished' } as TTSMessageEvent;
       return;
     }
 
-    await this.stop();
+    await this.stopInternal();
     if (!this.#audioElement) {
       this.#audioElement = new Audio();
     }
     const audio = this.#audioElement;
+    audio.setAttribute('x-webkit-airplay', 'deny');
+    audio.preload = 'auto';
 
     for (const mark of marks) {
-      if (signal.aborted) break;
-
+      this.controller?.dispatchSpeakMark(mark);
+      let abortHandler: null | (() => void) = null;
       try {
-        const audioUrl = await this.#fetchGeminiAudio(mark.text, signal);
-        if (!audioUrl) continue;
+        this.#speakingLang = mark.language || this.#primaryLang;
+        const audioUrl = await this.#createAudioUrlWithRetry(this.#getPayload(mark.text), signal);
+
+        if (signal.aborted) {
+          yield { code: 'error', message: 'Aborted' } as TTSMessageEvent;
+          break;
+        }
 
         yield {
           code: 'boundary',
@@ -69,39 +149,41 @@ export class GeminiTTSClient implements TTSClient {
           const cleanUp = () => {
             audio.onended = null;
             audio.onerror = null;
-            if (audio.src.startsWith('blob:')) {
-              URL.revokeObjectURL(audio.src);
-            }
             audio.src = '';
           };
-
+          let resolved = false;
           const handleEnded = () => {
+            if (resolved) return;
+            resolved = true;
             cleanUp();
             resolve({ code: 'end', message: `Chunk finished: ${mark.name}` });
           };
 
-          const handleError = (e: string | Event) => {
-            cleanUp();
-            console.error('Gemini TTS playback error:', e);
-            resolve({ code: 'error', message: 'Audio playback error' });
-          };
-
-          audio.onended = handleEnded;
-          audio.onerror = handleError;
-
-          const abortHandler = () => {
+          abortHandler = () => {
             cleanUp();
             resolve({ code: 'error', message: 'Aborted' });
           };
+          if (signal.aborted) {
+            abortHandler();
+            return;
+          } else {
+            signal.addEventListener('abort', abortHandler);
+          }
 
-          signal.addEventListener('abort', abortHandler, { once: true });
+          audio.onended = handleEnded;
+          audio.onerror = (e) => {
+            cleanUp();
+            console.warn('Gemini TTS playback error:', e);
+            resolve({ code: 'error', message: 'Audio playback error' });
+          };
 
           this.#isPlaying = true;
-          audio.src = audioUrl;
+          audio.src = audioUrl || '';
           audio.playbackRate = this.#rate;
           audio.play().catch((err) => {
             if (err.name !== 'AbortError') {
               cleanUp();
+              console.error('Gemini TTS Playback failed:', err);
               resolve({ code: 'error', message: 'Playback failed: ' + err.message });
             }
           });
@@ -114,8 +196,13 @@ export class GeminiTTSClient implements TTSClient {
         console.error('Gemini TTS error:', error);
         yield { code: 'error', message } as TTSMessageEvent;
         break;
+      } finally {
+        if (abortHandler) {
+          signal.removeEventListener('abort', abortHandler);
+        }
       }
     }
+    await this.stopInternal();
   }
 
   async #fetchGeminiAudio(text: string, signal: AbortSignal): Promise<string | null> {
@@ -156,11 +243,8 @@ export class GeminiTTSClient implements TTSClient {
       throw new Error('No audio data received from Gemini');
     }
 
-    const binaryString = atob(audioBase64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
+    // Use a more robust base64 to Uint8Array conversion
+    const bytes = Uint8Array.from(atob(audioBase64), (c) => c.charCodeAt(0));
 
     const wavBytes = encodeWav(bytes, 24000, 1, 16);
     const blob = new Blob([wavBytes as BlobPart], { type: 'audio/wav' });
@@ -169,7 +253,7 @@ export class GeminiTTSClient implements TTSClient {
 
   async pause() {
     if (this.#audioElement && this.#isPlaying) {
-      this.#audioElement.pause();
+      await this.#audioElement.pause();
       this.#isPlaying = false;
       return true;
     }
@@ -191,12 +275,16 @@ export class GeminiTTSClient implements TTSClient {
   }
 
   async stop() {
+    await this.stopInternal();
+  }
+
+  private async stopInternal() {
     this.#isPlaying = false;
     if (this.#audioElement) {
       this.#audioElement.pause();
       this.#audioElement.currentTime = 0;
-      if (this.#audioElement.src.startsWith('blob:')) {
-        URL.revokeObjectURL(this.#audioElement.src);
+      if (this.#audioElement.onended) {
+        this.#audioElement.onended(new Event('stopped'));
       }
       this.#audioElement.src = '';
     }
@@ -216,8 +304,11 @@ export class GeminiTTSClient implements TTSClient {
   async setPitch(_pitch: number) {}
 
   async setVoice(voice: string) {
-    if (voice) {
+    if (voice && this.#currentVoiceId !== voice) {
       this.#currentVoiceId = voice;
+      // Clear cache when voice changes
+      this.#audioCache.forEach((url) => URL.revokeObjectURL(url));
+      this.#audioCache.clear();
     }
   }
 

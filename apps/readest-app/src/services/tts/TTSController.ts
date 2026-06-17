@@ -65,7 +65,7 @@ export class TTSController extends EventTarget {
     this.ttsWebClient = new WebSpeechClient(this);
     this.ttsEdgeClient = new EdgeTTSClient(this, appService);
     if (geminiTtsApiKey && geminiTtsEnabled) {
-      this.ttsGeminiClient = new GeminiTTSClient(geminiTtsApiKey);
+      this.ttsGeminiClient = new GeminiTTSClient(geminiTtsApiKey, this, appService);
     }
     // TODO: implement native TTS client for iOS and PC
     if (appService?.isAndroidApp) {
