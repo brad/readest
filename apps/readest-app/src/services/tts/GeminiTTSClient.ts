@@ -1,3 +1,4 @@
+import { encodeWav } from '@/utils/audio';
 import { parseSSMLMarks } from '@/utils/ssml';
 import { TTSClient, TTSMessageEvent } from './TTSClient';
 import { TTSGranularity, TTSVoice, TTSVoicesGroup } from './types';
@@ -161,7 +162,8 @@ export class GeminiTTSClient implements TTSClient {
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    const blob = new Blob([bytes], { type: 'audio/wav' });
+    const wavBytes = encodeWav(bytes, 24000, 1, 16);
+    const blob = new Blob([wavBytes as BlobPart], { type: 'audio/wav' });
     return URL.createObjectURL(blob);
   }
 
