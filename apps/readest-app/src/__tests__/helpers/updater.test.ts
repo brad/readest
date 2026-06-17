@@ -45,6 +45,7 @@ vi.mock('@/services/environment', () => ({
 let mockAppVersion = '1.0.0';
 vi.mock('@/utils/version', () => ({
   getAppVersion: () => mockAppVersion,
+  isNightly: () => mockAppVersion.includes('nightly'),
 }));
 
 vi.mock('@/services/constants', () => ({

@@ -7,11 +7,12 @@ import { ScrollBarStyle } from '@tauri-apps/api/window';
 import { TranslationFunc } from '@/hooks/useTranslation';
 import { setUpdaterWindowVisible } from '@/components/UpdaterWindow';
 import { isTauriAppPlatform } from '@/services/environment';
-import { getAppVersion } from '@/utils/version';
+import { getAppVersion, isNightly } from '@/utils/version';
 import {
   CHECK_UPDATE_INTERVAL_SEC,
   READEST_CHANGELOG_FILE,
   READEST_UPDATER_FILE,
+  GITHUB_NIGHTLY_RELEASES_API,
 } from '@/services/constants';
 
 const LAST_CHECK_KEY = 'lastAppUpdateCheck';
@@ -45,6 +46,7 @@ export const checkForAppUpdates = async (
   localStorage.setItem(LAST_CHECK_KEY, now.toString());
 
   console.log('Checking for updates');
+  const isNightlyVersion = isNightly();
   const OS_TYPE = osType();
   if (['macos', 'windows', 'linux'].includes(OS_TYPE)) {
     const update = await check();
@@ -58,7 +60,26 @@ export const checkForAppUpdates = async (
     return !!update;
   } else if (OS_TYPE === 'android') {
     try {
-      const response = await fetch(READEST_UPDATER_FILE, { connectTimeout: 5000 });
+      let updaterUrl = READEST_UPDATER_FILE;
+      if (isNightlyVersion) {
+        const res = await fetch(GITHUB_NIGHTLY_RELEASES_API, { connectTimeout: 5000 });
+        if (res.ok) {
+          const releases = await res.json();
+          const latestNightly = releases.find(
+            (r: { tag_name: string; assets: { name: string; browser_download_url: string }[] }) =>
+              r.tag_name && r.tag_name.startsWith('nightly-'),
+          );
+          if (latestNightly) {
+            const latestJsonAsset = latestNightly.assets.find(
+              (a: { name: string; browser_download_url: string }) => a.name === 'latest.json',
+            );
+            if (latestJsonAsset) {
+              updaterUrl = latestJsonAsset.browser_download_url;
+            }
+          }
+        }
+      }
+      const response = await fetch(updaterUrl, { connectTimeout: 5000 });
       const data = await response.json();
       const isNewer = semver.gt(data.version, getAppVersion());
       if (isNewer && ('android-arm64' in data.platforms || 'android-universal' in data.platforms)) {
