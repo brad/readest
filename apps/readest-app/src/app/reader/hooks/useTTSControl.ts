@@ -518,6 +518,7 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
           !!user?.id,
           preprocessSSMLForTTS,
           handleSectionChange,
+          viewSettings.geminiTtsApiKey,
         );
         ttsControllerRef.current = ttsController;
         setTtsController(ttsController);
