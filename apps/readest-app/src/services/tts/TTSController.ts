@@ -59,11 +59,12 @@ export class TTSController extends EventTarget {
     preprocessCallback?: (ssml: string) => Promise<string>,
     onSectionChange?: (sectionIndex: number) => Promise<void>,
     geminiTtsApiKey: string = '',
+    geminiTtsEnabled: boolean = false,
   ) {
     super();
     this.ttsWebClient = new WebSpeechClient(this);
     this.ttsEdgeClient = new EdgeTTSClient(this, appService);
-    if (geminiTtsApiKey) {
+    if (geminiTtsApiKey && geminiTtsEnabled) {
       this.ttsGeminiClient = new GeminiTTSClient(geminiTtsApiKey);
     }
     // TODO: implement native TTS client for iOS and PC
