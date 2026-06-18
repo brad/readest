@@ -381,12 +381,16 @@ export class TTSController extends EventTarget {
         }
         const iter = await this.ttsClient.speak(ssml, signal);
         let lastCode;
-        for await (const { code } of iter) {
+        for await (const { code, message } of iter) {
           if (signal.aborted) {
             resolve();
             return;
           }
           lastCode = code;
+          if (code === 'error') {
+            console.error('[TTS] client error:', message);
+            break;
+          }
         }
 
         if (lastCode === 'end' && this.state === 'playing' && !oneTime) {

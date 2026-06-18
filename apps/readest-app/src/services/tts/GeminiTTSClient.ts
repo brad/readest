@@ -133,6 +133,9 @@ export class GeminiTTSClient implements TTSClient {
       try {
         this.#speakingLang = mark.language || this.#primaryLang;
         const audioUrl = await this.#createAudioUrlWithRetry(this.#getPayload(mark.text), signal);
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('Gemini TTS audio URL:', audioUrl);
+        }
 
         if (signal.aborted) {
           yield { code: 'error', message: 'Aborted' } as TTSMessageEvent;
@@ -180,13 +183,23 @@ export class GeminiTTSClient implements TTSClient {
           this.#isPlaying = true;
           audio.src = audioUrl || '';
           audio.playbackRate = this.#rate;
-          audio.play().catch((err) => {
-            if (err.name !== 'AbortError') {
-              cleanUp();
-              console.error('Gemini TTS Playback failed:', err);
-              resolve({ code: 'error', message: 'Playback failed: ' + err.message });
-            }
-          });
+          audio
+            .play()
+            .then(() => {
+              if (process.env.NODE_ENV === 'development') {
+                console.debug('Gemini TTS playback started');
+              }
+            })
+            .catch((err) => {
+              if (err.name === 'AbortError') {
+                cleanUp();
+                resolve({ code: 'end', message: 'Aborted' });
+              } else {
+                cleanUp();
+                console.error('Gemini TTS Playback failed:', err);
+                resolve({ code: 'error', message: 'Playback failed: ' + err.message });
+              }
+            });
         });
 
         yield result;
@@ -214,11 +227,11 @@ export class GeminiTTSClient implements TTSClient {
       body: JSON.stringify({
         contents: [{ parts: [{ text }] }],
         generationConfig: {
-          response_modalities: ['AUDIO'],
-          speech_config: {
-            voice_config: {
-              prebuilt_voice_config: {
-                voice_name: this.#currentVoiceId,
+          responseModalities: ['AUDIO'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: this.#currentVoiceId,
               },
             },
           },
@@ -235,6 +248,9 @@ export class GeminiTTSClient implements TTSClient {
     }
 
     const data = await response.json();
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('Gemini TTS API response:', data);
+    }
     const audioBase64 = data.candidates?.[0]?.content?.parts?.find(
       (p: { inlineData?: { data: string } }) => p.inlineData,
     )?.inlineData?.data;
@@ -244,7 +260,10 @@ export class GeminiTTSClient implements TTSClient {
     }
 
     // Use a more robust base64 to Uint8Array conversion
-    const bytes = Uint8Array.from(atob(audioBase64), (c) => c.charCodeAt(0));
+    const bytes = Uint8Array.from(
+      atob(audioBase64.padEnd(audioBase64.length + ((4 - (audioBase64.length % 4)) % 4), '=')),
+      (c) => c.charCodeAt(0),
+    );
 
     const wavBytes = encodeWav(bytes, 24000, 1, 16);
     const blob = new Blob([wavBytes as BlobPart], { type: 'audio/wav' });
