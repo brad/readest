@@ -72,3 +72,49 @@ export const applyEdgeFade = (
     samples[last - i]! *= gain;
   }
 };
+
+export function padBase64(b64: string): string {
+  const remainder = b64.length % 4;
+  if (remainder === 0) return b64;
+  return b64 + '='.repeat(4 - remainder);
+}
+
+export function createWavFromPcm(
+  pcmData: Uint8Array,
+  sampleRate = 24000,
+  numChannels = 1,
+  bitsPerSample = 16,
+): ArrayBuffer {
+  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const dataSize = pcmData.byteLength;
+  const chunkSize = 36 + dataSize;
+
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  // RIFF Chunk Descriptor
+  view.setUint32(0, 0x52494646, false); // "RIFF" (Big-endian ASCII)
+  view.setUint32(4, chunkSize, true); // Little-endian
+  view.setUint32(8, 0x57415645, false); // "WAVE" (Big-endian ASCII)
+
+  // "fmt " Sub-chunk
+  view.setUint32(12, 0x666d7420, false); // "fmt "
+  view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
+  view.setUint16(20, 1, true); // AudioFormat (1 = PCM)
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+
+  // "data" Sub-chunk
+  view.setUint32(36, 0x64617461, false); // "data"
+  view.setUint32(40, dataSize, true);
+
+  // Copy raw PCM sample bytes
+  const pcmBytes = new Uint8Array(buffer, 44, dataSize);
+  pcmBytes.set(pcmData);
+
+  return buffer;
+}

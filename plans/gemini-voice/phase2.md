@@ -2,7 +2,7 @@
 
 **Target Plan File**: `plans/gemini-voice/phase2.md`
 **Parent Plan**: `plans/gemini-voice/overview.md`
-**Status**: Draft / Ready for Review
+**Status**: Completed
 
 ---
 
@@ -11,23 +11,23 @@
 Phase 2 builds the core audio processing utilities, REST payload schema serialization, and the primary TTS engine components (`GeminiSpeechProvider` and `GeminiTTSClient`) for **Gemini Voice** in Readest.
 
 By the end of Phase 2:
-1. Raw PCM audio data (24kHz, mono, 16-bit little-endian) returned by Google Gemini API will be formatted into playable RIFF/WAVE ArrayBuffers with normalized Base64 padding.
-2. `GeminiSpeechProvider` will conform strictly to the `SpeechProvider` interface, formatting REST requests using Gemini's required camelCase schema.
-3. `GeminiTTSClient` will extend `BufferedTTSClient` to seamlessly leverage Readest's WebAudio / Native audio playback pipeline, time-stretching (WSOLA), inter-sentence gap control, and per-book persistent audio caching (`BookTTSCacheStore`).
-4. `TTSController` will initialize and register `GeminiTTSClient`, allowing users to select Gemini voices in the reading interface.
+1. Raw PCM audio data (24kHz, mono, 16-bit little-endian) returned by Google Gemini API is formatted into playable RIFF/WAVE ArrayBuffers with normalized Base64 padding.
+2. `GeminiSpeechProvider` conforms strictly to the `SpeechProvider` interface, formatting REST requests using Gemini's required camelCase schema.
+3. `GeminiTTSClient` extends `BufferedTTSClient` to seamlessly leverage Readest's WebAudio / Native audio playback pipeline, time-stretching (WSOLA), inter-sentence gap control, and per-book persistent audio caching (`BookTTSCacheStore`).
+4. `TTSController` initializes and registers `GeminiTTSClient`, allowing users to select Gemini voices in the reading interface.
 
 ---
 
 ## 2. Target Files & Key Components
 
-| File Path | Description / Changes |
-| --- | --- |
-| `apps/readest-app/src/services/tts/pcm.ts` | Utilities for Base64 string padding normalization and 44-byte RIFF/WAVE header generation for raw 24kHz 16-bit mono PCM data. |
-| `apps/readest-app/src/services/tts/providers/gemini.ts` | Implement `GeminiSpeechProvider` conforming to `SpeechProvider` interface. |
-| `apps/readest-app/src/services/tts/GeminiTTSClient.ts` | Implement `GeminiTTSClient` subclassing `BufferedTTSClient`. |
-| `apps/readest-app/src/services/tts/TTSController.ts` | Instantiate `GeminiTTSClient`, include Gemini voices in `getVoices()`, and handle client selection in `setVoice()`. |
-| `apps/readest-app/src/__tests__/utils/audio.test.ts` | Unit tests for Base64 padding normalization and RIFF/WAVE header binary correctness. |
-| `apps/readest-app/src/__tests__/services/tts/GeminiSpeechProvider.test.ts` | Unit tests for REST API request payload formatting (camelCase compliance) and response parsing. |
+| File Path | Description / Changes | Status |
+| --- | --- | --- |
+| `apps/readest-app/src/services/tts/pcm.ts` | Utilities for Base64 string padding normalization and 44-byte RIFF/WAVE header generation for raw 24kHz 16-bit mono PCM data. | Completed |
+| `apps/readest-app/src/services/tts/providers/gemini.ts` | Implement `GeminiSpeechProvider` conforming to `SpeechProvider` interface. | Completed |
+| `apps/readest-app/src/services/tts/GeminiTTSClient.ts` | Implement `GeminiTTSClient` subclassing `BufferedTTSClient`. | Completed |
+| `apps/readest-app/src/services/tts/TTSController.ts` | Instantiate `GeminiTTSClient`, include Gemini voices in `getVoices()`, and handle client selection in `setVoice()`. | Completed |
+| `apps/readest-app/src/__tests__/services/tts/pcm.test.ts` | Unit tests for Base64 padding normalization and RIFF/WAVE header binary correctness. | Completed |
+| `apps/readest-app/src/__tests__/services/tts/GeminiSpeechProvider.test.ts` | Unit tests for REST API request payload formatting (camelCase compliance) and response parsing. | Completed |
 
 ---
 
@@ -152,183 +152,19 @@ The REST response contains candidate parts with `inlineData` holding the base64-
 
 ## 5. Gemini Speech Provider (`GeminiSpeechProvider`)
 
-Implemented in `apps/readest-app/src/services/tts/providers/gemini.ts`:
-
-```typescript
-import { GEMINI_PREBUILT_VOICES, DEFAULT_GEMINI_VOICE } from '@/services/constants';
-import { createWavFromPcm, padBase64 } from '@/services/tts/pcm';
-import type { TTSVoice } from '../types';
-import {
-  SpeechProvider,
-  SpeechSynthesisPermanentError,
-  SpeechSynthesisRequest,
-  SpeechSynthesisResult,
-} from './types';
-
-export class GeminiSpeechProvider implements SpeechProvider {
-  readonly id = 'gemini-tts';
-  readonly label = 'Gemini Voice';
-  readonly fallbackVoiceId = DEFAULT_GEMINI_VOICE;
-  readonly cacheable = true;
-
-  #apiKey = '';
-
-  setApiKey(apiKey: string): void {
-    this.#apiKey = apiKey;
-  }
-
-  async init(): Promise<boolean> {
-    return true; // Active when API key is provided
-  }
-
-  async getAllVoices(): Promise<TTSVoice[]> {
-    return GEMINI_PREBUILT_VOICES.map((v) => ({
-      id: v.id,
-      name: v.name,
-      lang: 'en-US',
-    }));
-  }
-
-  async synthesize(
-    req: SpeechSynthesisRequest,
-    signal: AbortSignal,
-  ): Promise<SpeechSynthesisResult> {
-    if (!this.#apiKey) {
-      throw new SpeechSynthesisPermanentError('Gemini API key is missing.');
-    }
-
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(
-      this.#apiKey,
-    )}`;
-
-    const payload = {
-      contents: [
-        {
-          parts: [{ text: req.text }],
-        },
-      ],
-      generationConfig: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: req.voice || DEFAULT_GEMINI_VOICE,
-            },
-          },
-        },
-      },
-    };
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal,
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      if (response.status === 400 || response.status === 403) {
-        throw new SpeechSynthesisPermanentError(
-          `Gemini API key or request error (${response.status}): ${errText}`,
-        );
-      }
-      throw new Error(`Gemini API HTTP ${response.status}: ${errText}`);
-    }
-
-    const json = await response.json();
-    const candidate = json.candidates?.[0];
-    const part = candidate?.content?.parts?.find((p: any) => p.inlineData?.data);
-
-    if (!part?.inlineData?.data) {
-      throw new SpeechSynthesisPermanentError('No audio data received from Gemini API.');
-    }
-
-    const paddedB64 = padBase64(part.inlineData.data);
-    const binaryStr = atob(paddedB64);
-    const pcmBytes = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) {
-      pcmBytes[i] = binaryStr.charCodeAt(i);
-    }
-
-    const wavArrayBuffer = createWavFromPcm(pcmBytes, 24000, 1, 16);
-
-    return {
-      audio: wavArrayBuffer,
-      boundaries: [], // Gemini audio API does not emit word boundaries
-    };
-  }
-}
-```
+Implemented in `apps/readest-app/src/services/tts/providers/gemini.ts`.
 
 ---
 
 ## 6. Gemini TTS Client (`GeminiTTSClient`)
 
-Implemented in `apps/readest-app/src/services/tts/GeminiTTSClient.ts`:
-
-```typescript
-import { AppService } from '@/types/system';
-import { BufferedTTSClient } from './BufferedTTSClient';
-import { GeminiSpeechProvider } from './providers/gemini';
-import { BookTTSCacheStore, getTTSCacheConfig } from './providers/bookCacheStore';
-import { CachingProvider } from './providers/cache';
-import { SpeechProvider } from './providers/types';
-import { TTSController } from './TTSController';
-
-export class GeminiTTSClient extends BufferedTTSClient {
-  #geminiProvider: GeminiSpeechProvider;
-
-  constructor(controller?: TTSController, appService?: AppService | null) {
-    const geminiProvider = new GeminiSpeechProvider();
-    let provider: SpeechProvider = geminiProvider;
-    const cacheConfig = getTTSCacheConfig();
-
-    if (appService && cacheConfig.enabled) {
-      const store = new BookTTSCacheStore(
-        appService,
-        () => controller?.bookKey?.split('-')[0] || null,
-        cacheConfig.budgetMB * 1024 * 1024,
-      );
-      provider = new CachingProvider(geminiProvider, store);
-    }
-
-    super(provider, controller, appService);
-    this.#geminiProvider = geminiProvider;
-  }
-
-  override async init(): Promise<boolean> {
-    this.voices = await this.#geminiProvider.getAllVoices();
-    this.initialized = true;
-    return true;
-  }
-
-  setApiKey(apiKey: string): void {
-    this.#geminiProvider.setApiKey(apiKey);
-  }
-}
-```
+Implemented in `apps/readest-app/src/services/tts/GeminiTTSClient.ts`.
 
 ---
 
 ## 7. `TTSController` Integration
 
-In `apps/readest-app/src/services/tts/TTSController.ts`:
-
-1. Instantiate `this.ttsGeminiClient = new GeminiTTSClient(this, appService)`.
-2. Update `init()`:
-   ```typescript
-   if (await this.ttsGeminiClient.init()) {
-     availableClients.push(this.ttsGeminiClient);
-     this.ttsGeminiVoices = await this.ttsGeminiClient.getAllVoices();
-   }
-   ```
-3. Update `getVoices(lang)`:
-   ```typescript
-   const ttsGeminiVoices = await this.ttsGeminiClient.getVoices(lang);
-   ```
-4. Update `setVoice(voiceId, lang)`:
-   Check if `voiceId` belongs to `ttsGeminiVoices`. If so, route active client to `this.ttsGeminiClient`.
+Implemented in `apps/readest-app/src/services/tts/TTSController.ts`.
 
 ---
 
@@ -336,7 +172,7 @@ In `apps/readest-app/src/services/tts/TTSController.ts`:
 
 1. **Step 1: Audio Utilities**
    - Create `padBase64` and `createWavFromPcm` in `apps/readest-app/src/services/tts/pcm.ts`.
-   - Write unit tests in `apps/readest-app/src/__tests__/utils/audio.test.ts`.
+   - Write unit tests in `apps/readest-app/src/__tests__/services/tts/pcm.test.ts`.
 2. **Step 2: `GeminiSpeechProvider` Implementation**
    - Create `apps/readest-app/src/services/tts/providers/gemini.ts`.
    - Implement `synthesize()` with camelCase schema formatting and REST API call.
@@ -354,8 +190,8 @@ In `apps/readest-app/src/services/tts/TTSController.ts`:
 
 ## 9. Acceptance & Verification Criteria
 
-- [ ] **Base64 & WAV Conversion**: Unit tests pass verifying exact 44-byte RIFF header offsets, PCM data copying, and Base64 padding normalization.
-- [ ] **REST Payload Compliance**: Unit tests verify JSON payload generated for `v1beta/generateContent` contains only camelCase keys (`responseModalities`, `speechConfig`, `voiceConfig`, `prebuiltVoiceConfig`, `voiceName`).
-- [ ] **Audio Playback**: `GeminiTTSClient` successfully decodes synthesized WAV audio and schedules playback using Readest's `BufferedTTSClient`.
-- [ ] **State Machine Integrity**: Stopping or skipping audio gracefully cancels in-flight fetch requests without throwing uncaught promise rejections.
-- [ ] **Type & Lint Safety**: Passes `tsc --noEmit` and `biome check` cleanly.
+- [x] **Base64 & WAV Conversion**: Unit tests pass verifying exact 44-byte RIFF header offsets, PCM data copying, and Base64 padding normalization.
+- [x] **REST Payload Compliance**: Unit tests verify JSON payload generated for `v1beta/generateContent` contains only camelCase keys (`responseModalities`, `speechConfig`, `voiceConfig`, `prebuiltVoiceConfig`, `voiceName`).
+- [x] **Audio Playback**: `GeminiTTSClient` successfully decodes synthesized WAV audio and schedules playback using Readest's `BufferedTTSClient`.
+- [x] **State Machine Integrity**: Stopping or skipping audio gracefully cancels in-flight fetch requests without throwing uncaught promise rejections.
+- [x] **Type & Lint Safety**: Passes `tsc --noEmit` and `biome check` cleanly.

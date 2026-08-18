@@ -57,6 +57,7 @@ vi.mock('@/services/tts/TTSUtils', () => ({
     setPreferredClient: vi.fn(),
     setPreferredVoice: vi.fn(),
     getPreferredVoice: vi.fn().mockReturnValue(null),
+    sortVoicesPreferLocaleFunc: vi.fn().mockReturnValue(() => 0),
   },
 }));
 vi.mock('foliate-js/overlayer.js', () => ({ Overlayer: { highlight: 'highlightFn' } }));
