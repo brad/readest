@@ -178,8 +178,8 @@ To ensure a smooth user experience even when Gemini Voice encounters API issues 
 ## 7. Step-by-Step Implementation Sequence
 
 1. **Step 1: Implement Retry & Backoff Utilities**
-   - Create `parseRetryAfterHeader` and `calculateBackoffWithJitter` helper functions in `apps/readest-app/src/utils/audio.ts` (or `GeminiSpeechProvider.ts`).
-   - Write comprehensive unit tests in `apps/readest-app/src/__tests__/utils/audio.test.ts`.
+   - Create `parseRetryAfterHeader` and `calculateBackoffWithJitter` helper functions in `apps/readest-app/src/services/tts/providers/gemini.ts`.
+   - Write comprehensive unit tests in `apps/readest-app/src/__tests__/services/tts/GeminiSpeechProvider.test.ts`.
 
 2. **Step 2: Update `GeminiSpeechProvider` Error Handling**
    - In `apps/readest-app/src/services/tts/providers/gemini.ts`, inspect response HTTP status codes.

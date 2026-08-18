@@ -69,7 +69,7 @@ Build the core `GeminiTTSClient` class conforming to the `TTSClient` interface a
 
 #### Key Deliverables
 1. **Audio Utility & PCM WAV Header Generator**:
-   - Maintain/refine raw PCM (24kHz, mono, 16-bit) to RIFF/WAVE header conversion in `apps/readest-app/src/utils/audio.ts`.
+   - Maintain/refine raw PCM (24kHz, mono, 16-bit) to RIFF/WAVE header conversion in `apps/readest-app/src/services/tts/pcm.ts`.
    - Ensure Base64 string decoding handles proper padding (`=`) before calling `atob()` to prevent browser decoding errors.
 2. **`GeminiTTSClient` Request Schema**:
    - Implement client in `apps/readest-app/src/services/tts/GeminiTTSClient.ts`.

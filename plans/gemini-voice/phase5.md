@@ -11,7 +11,7 @@
 Phase 5 focuses on comprehensive testing, verification, end-to-end integration, code quality, and repo compliance for the entire **Gemini Voice** feature.
 
 By the end of Phase 5:
-1. **Audio & Utility Testing**: Unit tests will verify Base64 padding normalization (`padBase64`) and 44-byte RIFF/WAVE header binary generation (`createWavFromPcm`) in `apps/readest-app/src/__tests__/utils/audio.test.ts`.
+1. **Audio & Utility Testing**: Unit tests will verify Base64 padding normalization (`padBase64`) and 44-byte RIFF/WAVE header binary generation (`createWavFromPcm`) in `apps/readest-app/src/__tests__/services/tts-pcm.test.ts`.
 2. **Provider & Schema Testing**: Unit tests will verify `GeminiSpeechProvider` REST request formatting (camelCase compliance), response parsing, error classification (`SpeechSynthesisPermanentError`), and rate-limit backoff behavior in `apps/readest-app/src/__tests__/services/tts/GeminiSpeechProvider.test.ts`.
 3. **Client & Integration Testing**: Integration tests will verify `GeminiTTSClient` lifecycle, preloading queue execution, cache hit/miss behavior with `CachingProvider` / `BookTTSCacheStore`, and `TTSController` event loop termination in `apps/readest-app/src/__tests__/services/tts/GeminiTTSClient.test.ts`.
 4. **UI & Settings Testing**: Unit tests will verify `TTSPanel.tsx` rendering, API key masking, voice dropdown selection, API key validation triggering, and backup credential sanitization in `TTSPanel.test.tsx` and `backup-settings.test.ts`.
@@ -23,7 +23,7 @@ By the end of Phase 5:
 
 | Test File Path | Description & Test Scenarios |
 | --- | --- |
-| `apps/readest-app/src/__tests__/utils/audio.test.ts` | Test `padBase64` with unpadded, 1-char, 2-char missing padding. Test `createWavFromPcm` byte header offsets (RIFF, WAVE, fmt, data) and payload embedding. |
+| `apps/readest-app/src/__tests__/services/tts-pcm.test.ts` | Test `padBase64` with unpadded, 1-char, 2-char missing padding. Test `createWavFromPcm` byte header offsets (RIFF, WAVE, fmt, data) and payload embedding. |
 | `apps/readest-app/src/__tests__/services/tts/GeminiSpeechProvider.test.ts` | Mock `fetch` to verify camelCase JSON schema, `HTTP 200` parsing, `HTTP 401/403` permanent errors, `HTTP 429` `Retry-After` parsing, and `HTTP 5xx` transient retries. |
 | `apps/readest-app/src/__tests__/services/tts/GeminiTTSClient.test.ts` | Integration tests for `GeminiTTSClient` init, `getAllVoices()`, `speak()` iterator, preloading, cache hits via `CachingProvider`, and `MAX_CONSECUTIVE_SKIPS` error code yielding. |
 | `apps/readest-app/src/__tests__/components/settings/TTSPanel.test.tsx` | Test Gemini section rendering in `TTSPanel`, entering API Key, selecting voice, clicking "Test" validation button, and feedback state updates. |
@@ -34,11 +34,11 @@ By the end of Phase 5:
 
 ## 3. Test Specifications & Code Examples
 
-### 3.1 Audio Utility Unit Tests (`audio.test.ts`)
+### 3.1 Audio Utility Unit Tests (`tts-pcm.test.ts`)
 
 ```typescript
 import { describe, expect, test } from 'vitest';
-import { createWavFromPcm, padBase64 } from '@/utils/audio';
+import { createWavFromPcm, padBase64 } from '@/services/tts/pcm';
 
 describe('padBase64', () => {
   test('adds correct padding to unpadded base64 strings', () => {
@@ -200,7 +200,7 @@ pnpm test
 ## 5. Step-by-Step Implementation Sequence
 
 1. **Step 1: Write Unit Tests for Audio Utilities**
-   - Create `apps/readest-app/src/__tests__/utils/audio.test.ts`.
+   - Create `apps/readest-app/src/__tests__/services/tts-pcm.test.ts`.
    - Test `padBase64` and `createWavFromPcm`.
 2. **Step 2: Write Unit Tests for `GeminiSpeechProvider`**
    - Create `apps/readest-app/src/__tests__/services/tts/GeminiSpeechProvider.test.ts`.
