@@ -203,8 +203,8 @@ To ensure a smooth user experience even when Gemini Voice encounters API issues 
 
 ## 8. Acceptance & Verification Criteria
 
-- [ ] **HTTP 4xx Classification**: `HTTP 400`, `401`, `403`, and `404` throw `SpeechSynthesisPermanentError` immediately without retrying.
-- [ ] **HTTP 429 & 5xx Retries**: `HTTP 429` responses with `Retry-After` headers delay execution according to the header value. Transient `5xx` errors perform exponential backoff with full jitter.
-- [ ] **Loop Termination**: When 3 consecutive sentences fail, `GeminiTTSClient` yields `{ code: 'error' }`, causing `TTSController` to call `#terminate('error')` and set `state = 'stopped'`.
-- [ ] **UI State Reset**: In-app playback controls never freeze in "playing" state on unrecoverable API errors; controls cleanly revert to "stopped/paused".
-- [ ] **Type & Lint Safety**: Compiles cleanly with `tsc --noEmit` and passes `biome check`.
+- [x] **HTTP 4xx Classification**: `HTTP 400`, `401`, `403`, and `404` throw `SpeechSynthesisPermanentError` immediately without retrying.
+- [x] **HTTP 429 & 5xx Retries**: `HTTP 429` responses with `Retry-After` headers delay execution according to the header value. Transient `5xx` errors perform exponential backoff with full jitter.
+- [x] **Loop Termination**: When 3 consecutive sentences fail, `GeminiTTSClient` yields `{ code: 'error' }`, causing `TTSController` to call `#terminate('error')` and set `state = 'stopped'`.
+- [x] **UI State Reset**: In-app playback controls never freeze in "playing" state on unrecoverable API errors; controls cleanly revert to "stopped/paused".
+- [x] **Type & Lint Safety**: Compiles cleanly with `tsc --noEmit` and passes `biome check`.
