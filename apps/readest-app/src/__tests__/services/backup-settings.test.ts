@@ -92,6 +92,7 @@ function makeSettings(overrides: Partial<SystemSettings> = {}): SystemSettings {
     globalViewSettings: {
       userStylesheet: 'body { color: red }',
       uiLanguage: 'en',
+      geminiApiKey: 'gemini-secret-key',
     },
     ...overrides,
   } as unknown as SystemSettings;
@@ -195,6 +196,7 @@ describe('sanitizeSettingsForBackup - credentials', () => {
     expect(rec(out.hardcover)['accessToken']).toBeUndefined();
     expect(rec(out.aiSettings)['aiGatewayApiKey']).toBeUndefined();
     expect(rec(out.aiSettings)['openrouterApiKey']).toBeUndefined();
+    expect(rec(out.globalViewSettings)['geminiApiKey']).toBeUndefined();
     // non-credential aiSettings fields (e.g. base URL) survive
     expect(rec(out.aiSettings)['openrouterBaseUrl']).toBe('https://openrouter.ai/api/v1');
     expect(out.opdsCatalogs[0]!.username).toBeUndefined();
@@ -214,6 +216,7 @@ describe('sanitizeSettingsForBackup - credentials', () => {
     expect(out.hardcover.accessToken).toBe('hc-token');
     expect(rec(out.aiSettings)['aiGatewayApiKey']).toBe('ai-secret-key');
     expect(rec(out.aiSettings)['openrouterApiKey']).toBe('or-secret-key');
+    expect(rec(out.globalViewSettings)['geminiApiKey']).toBe('gemini-secret-key');
     expect(out.opdsCatalogs[0]!.username).toBe('opds-user');
     expect(out.opdsCatalogs[0]!.password).toBe('opds-pass');
   });
