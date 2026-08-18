@@ -26,6 +26,15 @@ vi.mock('@/services/tts/NativeTTSClient', () => ({
   }),
 }));
 
+vi.mock('@/services/tts/GeminiTTSClient', () => ({
+  GeminiTTSClient: vi.fn().mockImplementation(function (this: Record<string, unknown>) {
+    Object.assign(this, createMockTTSClient('gemini-tts'), {
+      setApiKey: vi.fn(),
+      setSentenceGap: vi.fn(),
+    });
+  }),
+}));
+
 // Track the inaudible background keep-alive (WebAudio) toggled for direct-speak
 // engines. Arrow closures so the vi.mock hoist never hits a TDZ on these consts.
 const startKeepAlive = vi.fn();
@@ -42,6 +51,8 @@ vi.mock('@/services/tts/TTSUtils', () => ({
     setPreferredClient: vi.fn(),
     setPreferredVoice: vi.fn(),
     getPreferredVoice: vi.fn().mockReturnValue(null),
+    sortVoicesFunc: vi.fn(() => () => 0),
+    sortVoicesPreferLocaleFunc: vi.fn(() => () => 0),
   },
 }));
 
@@ -65,6 +76,7 @@ vi.mock('@/utils/node', () => ({
 
 vi.mock('@/utils/lang', () => ({
   isValidLang: vi.fn(() => true),
+  isSameLang: vi.fn(() => true),
 }));
 
 vi.mock('foliate-js/tts.js', () => ({

@@ -1,3 +1,5 @@
+export { DEFAULT_PARAGRAPH_GAP_SEC } from './BufferedTTSClient';
+import { DEFAULT_PARAGRAPH_GAP_SEC } from './BufferedTTSClient';
 import { FoliateView, ViewTTS } from '@/types/view';
 import { AppService } from '@/types/system';
 import { SectionItem } from '@/libs/document';
@@ -93,7 +95,7 @@ export interface TTSViewBindings {
 // is engine-agnostic, handled entirely in #speak()/forward() below. There is
 // no natural pause here otherwise -- the transition is as fast as the async
 // stop/init overhead allows, which reads as no pause at all.
-export const DEFAULT_PARAGRAPH_GAP_SEC = 0.3;
+// DEFAULT_PARAGRAPH_GAP_SEC imported from BufferedTTSClient
 
 export class TTSController extends EventTarget {
   appService: AppService | null = null;
