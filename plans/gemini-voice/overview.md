@@ -1,112 +1,147 @@
-# Gemini Voice Feature Overview
+# Gemini Voice Integration - Master Implementation Plan
 
-This document provides a high-level overview of the architecture, design, and implementation steps required to integrate **Gemini Voice** into Readest.
-
----
-
-## 1. Objective & Scope
-
-Readest currently supports reading ebooks aloud using standard/lower-quality TTS engines (such as Web Speech API, Native TTS, or Edge TTS). The **Gemini Voice** feature enhances the reading experience by bringing natural, high-fidelity AI-generated speech powered by Google's Gemini API.
-
-At a high level:
-- Users can provide their own **Gemini API Key** in settings.
-- When enabled, Readest uses Gemini API speech generation to read book text aloud instead of standard voices.
-- Advanced handling is introduced for audio formatting, rate limits, network resilience, quota management, and preloading.
+This master plan outlines the step-by-step roadmap for implementing **Gemini Voice** in Readest. It provides high-level guidance, technical requirements, and phase breakdowns. Detailed implementation tasks for each phase will be expanded into individual execution plan files (`plan1.md`, `plan2.md`, etc.).
 
 ---
 
-## 2. High-Level Architecture & Workflow
+## Architecture & Workflow Overview
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    User Interface                       │
-│  - Settings: API Key, Voice Selection                   │
-│  - TTS Controls: Play, Pause, Skip                      │
+│  - Settings: API Key Entry, Voice & Pitch Selection     │
+│  - TTS Controls: Play, Pause, Skip, Preload Indicator   │
 └───────────────────────────┬─────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────┐
 │                      TTSController                      │
-│  - Manages playback state & queue                       │
-│  - Dispatches highlight / sentence marks                │
+│  - Manages playback state & sentence queue              │
+│  - Receives yield status & dispatches highlight marks   │
 └───────────────────────────┬─────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────┐
 │                     GeminiTTSClient                     │
-│  - Interacts with Gemini REST API                       │
-│  - Decodes PCM audio & attaches RIFF/WAVE header        │
-│  - Handles caching, retries, and rate limiting          │
-└─────────────────────────────────────────────────────────┘
+│  - Formats camelCase v1beta/generateContent API requests │
+│  - Decodes PCM audio, pads Base64, prepends WAV header  │
+│  - Handles retry backoff, caching, and preloading       │
+└───────────────────────────┴─────────────────────────────┘
 ```
 
 ---
 
-## 3. Key Technical Challenges & Complications
+## Step-by-Step Implementation Roadmap
 
-While replacing audio playback with Gemini API voices sounds straightforward, production integration presents several technical constraints and complications:
-
-### A. API Key & Settings Configuration
-- **User Provided Key**: Users specify their Gemini API key in Readest's TTS / AI Settings.
-- **Secure Persistence**: Keys must be stored securely using system settings persistence (`settingsService` / `aiSettings`).
-- **Validation**: On key input or test button click, perform a lightweight check to confirm API key validity.
-
-### B. Request Formatting & Parameter Compliance
-- **API Version & Endpoints**: Utilizes Gemini REST endpoints (`v1beta/generateContent`).
-- **CamelCase Requirement**: Request payloads must strictly use `camelCase` for configuration fields (e.g., `responseModalities`, `speechConfig`, `voiceConfig`, `prebuiltVoiceConfig`, `voiceName`).
-- **Modality**: Requesting audio output (`AUDIO` modality) returns raw PCM audio data.
-
-### C. Audio Processing & Playback
-- **Audio Format**: Gemini returns raw PCM audio data (typically 24kHz, 16-bit, mono PCM) encoded in Base64 within the response.
-- **Base64 Decoding**: Base64 strings returned across network boundaries must ensure proper padding (`=`) to prevent browser `atob()` decoding errors.
-- **WAVE Container Header**: Raw PCM cannot be directly played by HTML5 `HTMLAudioElement`. A valid RIFF/WAVE header must be generated and prepended to the PCM buffer before feeding to `HTMLAudioElement` or Web Audio API.
-- **Playback Error Handling**: `HTMLAudioElement.play()` failures and `AbortError` (e.g. when user skips rapidly or stops playback) must be safely caught to prevent UI freeze in a stuck "playing" state.
-
-### D. Network Hiccups & Resiliency
-- **Retries & Timeouts**: Transient network drops require exponential backoff retries with reasonable timeouts.
-- **Offline Fallback**: Option to fallback gracefully to standard local/Edge TTS when disconnected or network fails repeatedly.
-
-### E. HTTP 429 & Rate Limiting
-- **Throttling**: Gemini API imposes rate limits on request frequency.
-- **Backoff Strategy**: On HTTP 429 response, parsing `Retry-After` headers and implementing exponential jitter backoff.
-- **Controller Loop Termination**: `TTSController` must monitor error status codes yielded by the client. Yielding explicit `error` codes must break the playback loop to reset controller state cleanly.
-
-### F. Quota Management
-- **Token/Character Tracking**: Track estimated daily and monthly character usage against Gemini API free/paid tier limits.
-- **Graceful Exhaustion**: Notify user when quota limits are reached and prompt user to inspect usage or switch voices.
-
-### G. Preloading & Sentence Synchronization
-- **Sentence Preloading**: Pre-fetch audio for upcoming paragraphs/sentences in the background to avoid buffering pauses between sentences.
-- **Highlight Marks**: Dispatch `speakMark` events via `TTSController` to keep reading highlight synchronized with current paragraph/sentence playback.
-- **Caching Layer**: Cache generated audio chunks (e.g. using `bookCacheStore` or IndexedDB/SQLite cache) to eliminate redundant API calls for previously read chapters.
+Below is the sequential breakdown of execution phases. Each phase represents a self-contained unit of work that can be planned and implemented independently.
 
 ---
 
-## 4. Implementation Steps Overview
+### Phase 1: Settings, API Key Management & Configuration UI
+*Target Plan File: `plans/gemini-voice/plan1.md`*
 
-1. **Settings & Configuration UI**:
-   - Add Gemini Voice option to `TTSConfig` / Settings UI.
-   - Add input field for Gemini API Key and voice selector (e.g., Puck, Charon, Kore, Fenrir, Aoede).
+#### Objective
+Enable users to configure Gemini Voice preferences, securely store their API key, and select Gemini voices within Readest settings.
 
-2. **Gemini TTS Client Implementation (`GeminiTTSClient`)**:
-   - Implement client conforming to `TTSClient` interface.
-   - Construct API request with correct `camelCase` schema.
-   - Handle Base64 decoding, PCM header attachment, and `HTMLAudioElement` / `WebAudioPlayer` setup.
+#### Key Deliverables
+1. **Types & Default Configuration**:
+   - Update `TTSConfig` interface in `apps/readest-app/src/types/book.ts` to include Gemini-specific fields (`geminiApiKey`, `geminiVoice`).
+   - Define defaults in `DEFAULT_TTS_CONFIG` within `apps/readest-app/src/services/constants.ts`.
+2. **Settings UI Component**:
+   - Add Gemini Voice configuration UI under TTS / AI Settings.
+   - Include API Key input field (masked/password input) and voice selection dropdown (e.g., Puck, Charon, Kore, Fenrir, Aoede).
+3. **API Key Validation**:
+   - Implement a lightweight validation test button or check using the Gemini REST endpoint (`v1beta/models`).
 
-3. **Resilience, Retry & Rate Limit Middleware**:
-   - Wrap fetch requests in exponential backoff handler for 429/5xx errors.
-   - Emit standard error events back to `TTSController` to maintain UI state consistency.
-
-4. **Audio Caching & Preloading**:
-   - Integrate with TTS caching stores to save decoded WAVE audio buffers.
-   - Trigger preloading for next text block during current audio chunk playback.
-
-5. **Testing & Verification**:
-   - Unit tests for PCM WAV header generator and Base64 decoding.
-   - Integration tests for settings persistence and client fallback behavior.
+#### Acceptance Criteria
+- API Key and voice selection persist across app reloads via `settingsService`.
+- User receives immediate UI feedback when validating an API key.
 
 ---
 
-## 5. Future Documentation
+### Phase 2: Core `GeminiTTSClient` & Audio Processing Utilities
+*Target Plan File: `plans/gemini-voice/plan2.md`*
 
-Subsequent documents in this directory will break down each phase into step-by-step implementation specifications.
+#### Objective
+Build the core `GeminiTTSClient` class conforming to the `TTSClient` interface and implement audio processing logic for raw PCM data returned by Gemini API.
+
+#### Key Deliverables
+1. **Audio Utility & PCM WAV Header Generator**:
+   - Maintain/refine raw PCM (24kHz, mono, 16-bit) to RIFF/WAVE header conversion in `apps/readest-app/src/utils/audio.ts`.
+   - Ensure Base64 string decoding handles proper padding (`=`) before calling `atob()` to prevent browser decoding errors.
+2. **`GeminiTTSClient` Request Schema**:
+   - Implement client in `apps/readest-app/src/services/tts/GeminiTTSClient.ts`.
+   - Ensure all request payload fields use `camelCase` required by Gemini `v1beta/generateContent` API (e.g., `responseModalities`, `speechConfig`, `voiceConfig`, `prebuiltVoiceConfig`, `voiceName`).
+3. **Playback & Abort Handling**:
+   - Manage `HTMLAudioElement` / `Audio` playback.
+   - Catch `AbortError` and playback promises safely during pause, skip, or stop operations to prevent UI freezing.
+
+#### Acceptance Criteria
+- Text converted to audio plays smoothly in browser HTML5 audio element.
+- Rapid skipping or stopping playback catches `AbortError` and resets state without crashing.
+
+---
+
+### Phase 3: Resilience, Error Handling & Rate Limiting
+*Target Plan File: `plans/gemini-voice/plan3.md`*
+
+#### Objective
+Provide robust network error handling, handle Gemini API HTTP 429 rate limits, and maintain state synchronization with `TTSController`.
+
+#### Key Deliverables
+1. **Exponential Backoff & Rate Limit Handling**:
+   - Implement exponential backoff with jitter for HTTP 429 (Too Many Requests) and 5xx server errors.
+   - Parse `Retry-After` response headers when available.
+2. **Controller Loop Termination**:
+   - Yield explicit `error` event codes from `GeminiTTSClient.speak()` iterator to `TTSController`.
+   - Ensure `TTSController` breaks playback loop on `error` code to reset state and clear "playing" UI.
+3. **Graceful Fallback**:
+   - Add optional automatic fallback to standard local/Edge TTS upon persistent API failures.
+
+#### Acceptance Criteria
+- HTTP 429 responses retry automatically according to backoff strategy.
+- Unrecoverable errors terminate reading loop immediately and reset UI state cleanly.
+
+---
+
+### Phase 4: Preloading, Sentence Synchronization & Audio Caching
+*Target Plan File: `plans/gemini-voice/plan4.md`*
+
+#### Objective
+Ensure uninterrupted playback through background sentence preloading, accurate reading highlight synchronization, and efficient caching.
+
+#### Key Deliverables
+1. **Background Audio Preloading**:
+   - Pre-fetch and synthesize upcoming sentences/paragraphs while current chunk plays.
+2. **Highlight Synchronization (`speakMark`)**:
+   - Call `this.controller.dispatchSpeakMark(mark)` as audio segments play to synchronize reading position highlights in the book view.
+3. **Audio Caching Layer**:
+   - Store synthesized WAVE audio buffers in local store (`bookCacheStore` / IndexedDB) indexed by text hash and voice settings.
+   - Skip network fetch if synthesized audio already exists in cache.
+
+#### Acceptance Criteria
+- Transition between sentences is smooth with minimal buffering pause.
+- Text highlights follow audio playback accurately.
+- Previously read content plays instantly from cache.
+
+---
+
+### Phase 5: Integration, Verification & Testing
+*Target Plan File: `plans/gemini-voice/plan5.md`*
+
+#### Objective
+Thoroughly test all components, ensure strict TypeScript type checking, and verify linting compliance across the repository.
+
+#### Key Deliverables
+1. **Unit & Utility Tests**:
+   - Write tests for PCM WAV header generator and Base64 padding fixer.
+   - Test request schema serialization (camelCase check).
+2. **Integration Tests**:
+   - Test `GeminiTTSClient` lifecycle, error recovery, and preloading queue logic.
+3. **Type Checking & Code Formatting**:
+   - Run `pnpm exec biome check --write` across modified files.
+   - Run TypeScript type checking (`NODE_OPTIONS="--max-old-space-size=4096" pnpm exec tsc --noEmit`).
+
+#### Acceptance Criteria
+- All unit and integration tests pass cleanly.
+- Code complies with repository Biome formatting and TypeScript strict mode.
