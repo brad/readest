@@ -745,6 +745,12 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     }
   }, [viewSettings?.ttsHighlightGranularity]);
 
+  useEffect(() => {
+    if (ttsControllerRef.current && viewSettings?.geminiApiKey !== undefined) {
+      ttsControllerRef.current.setGeminiApiKey(viewSettings.geminiApiKey ?? '');
+    }
+  }, [viewSettings?.geminiApiKey]);
+
   // handleStop (defined before handleTTSSpeak/handleTTSStop which reference it)
   const handleStop = useCallback(
     async (bookKey: string) => {
@@ -932,6 +938,7 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
 
           ttsController.setLang(lang);
           ttsController.setRate(viewSettings.ttsRate);
+          ttsController.setGeminiApiKey(viewSettings.geminiApiKey ?? '');
           ttsController.setSentenceGap(viewSettings.ttsSentenceGap ?? DEFAULT_SENTENCE_GAP_SEC);
           ttsController.setParagraphGap(viewSettings.ttsParagraphGap ?? DEFAULT_PARAGRAPH_GAP_SEC);
           // Narrating a selection is an ordinary session started at that point,

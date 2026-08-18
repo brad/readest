@@ -45,6 +45,7 @@ import { TTSAudioBuffer, WebAudioPlayer, WebAudioPlayerEvent } from './WebAudioP
 // native path only cuts the trailing silence, so its audible gap also carries
 // the next utterance's ~0.18s of leading silence.
 export const DEFAULT_SENTENCE_GAP_SEC = 0.15;
+export const DEFAULT_PARAGRAPH_GAP_SEC = 0.3;
 const TICKS_PER_SECOND = 10_000_000;
 
 // How many consecutive unreachable sentences (offline with nothing cached, or
