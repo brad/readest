@@ -447,6 +447,16 @@ export const DEFAULT_VIEW_CONFIG: ViewConfig = {
   readingRulerColor: 'transparent',
 };
 
+export const GEMINI_PREBUILT_VOICES = [
+  { id: 'Puck', name: 'Puck (Enthusiastic / Male)', gender: 'male' },
+  { id: 'Charon', name: 'Charon (Deep / Male)', gender: 'male' },
+  { id: 'Kore', name: 'Kore (Calm / Female)', gender: 'female' },
+  { id: 'Fenrir', name: 'Fenrir (Intense / Male)', gender: 'male' },
+  { id: 'Aoede', name: 'Aoede (Warm / Female)', gender: 'female' },
+] as const;
+
+export const DEFAULT_GEMINI_VOICE = 'Puck';
+
 export const DEFAULT_TTS_CONFIG: TTSConfig = {
   ttsRate: 1.3,
   ttsSentenceGap: DEFAULT_SENTENCE_GAP_SEC,
@@ -458,6 +468,8 @@ export const DEFAULT_TTS_CONFIG: TTSConfig = {
   ttsHighlightGranularity: 'word',
   ttsMediaMetadata: 'sentence',
   ttsPlayerStyle: 'full',
+  geminiApiKey: '',
+  geminiVoice: DEFAULT_GEMINI_VOICE,
 };
 
 export const DEFAULT_TRANSLATOR_CONFIG: TranslatorConfig = {

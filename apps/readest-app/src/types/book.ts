@@ -344,6 +344,8 @@ export interface TTSConfig {
   ttsHighlightGranularity: TTSHighlightGranularity;
   ttsMediaMetadata: TTSMediaMetadataMode;
   ttsPlayerStyle: TTSPlayerStyle;
+  geminiApiKey?: string;
+  geminiVoice?: string;
 }
 
 export interface TranslatorConfig {
