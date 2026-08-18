@@ -22,7 +22,7 @@ By the end of Phase 2:
 
 | File Path | Description / Changes |
 | --- | --- |
-| `apps/readest-app/src/utils/audio.ts` | Utilities for Base64 string padding normalization and 44-byte RIFF/WAVE header generation for raw 24kHz 16-bit mono PCM data. |
+| `apps/readest-app/src/services/tts/pcm.ts` | Utilities for Base64 string padding normalization and 44-byte RIFF/WAVE header generation for raw 24kHz 16-bit mono PCM data. |
 | `apps/readest-app/src/services/tts/providers/gemini.ts` | Implement `GeminiSpeechProvider` conforming to `SpeechProvider` interface. |
 | `apps/readest-app/src/services/tts/GeminiTTSClient.ts` | Implement `GeminiTTSClient` subclassing `BufferedTTSClient`. |
 | `apps/readest-app/src/services/tts/TTSController.ts` | Instantiate `GeminiTTSClient`, include Gemini voices in `getVoices()`, and handle client selection in `setVoice()`. |
@@ -156,7 +156,7 @@ Implemented in `apps/readest-app/src/services/tts/providers/gemini.ts`:
 
 ```typescript
 import { GEMINI_PREBUILT_VOICES, DEFAULT_GEMINI_VOICE } from '@/services/constants';
-import { createWavFromPcm, padBase64 } from '@/utils/audio';
+import { createWavFromPcm, padBase64 } from '@/services/tts/pcm';
 import type { TTSVoice } from '../types';
 import {
   SpeechProvider,
@@ -335,7 +335,7 @@ In `apps/readest-app/src/services/tts/TTSController.ts`:
 ## 8. Step-by-Step Implementation Sequence
 
 1. **Step 1: Audio Utilities**
-   - Create `padBase64` and `createWavFromPcm` in `apps/readest-app/src/utils/audio.ts`.
+   - Create `padBase64` and `createWavFromPcm` in `apps/readest-app/src/services/tts/pcm.ts`.
    - Write unit tests in `apps/readest-app/src/__tests__/utils/audio.test.ts`.
 2. **Step 2: `GeminiSpeechProvider` Implementation**
    - Create `apps/readest-app/src/services/tts/providers/gemini.ts`.
