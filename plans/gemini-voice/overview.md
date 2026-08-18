@@ -1,6 +1,6 @@
 # Gemini Voice Integration - Master Implementation Plan
 
-This master plan outlines the step-by-step roadmap for implementing **Gemini Voice** in Readest. It provides high-level guidance, technical requirements, and phase breakdowns. Detailed implementation tasks for each phase will be expanded into individual execution plan files (`plan1.md`, `plan2.md`, etc.).
+This master plan outlines the step-by-step roadmap for implementing **Gemini Voice** in Readest. It provides high-level guidance, technical requirements, and phase breakdowns. Detailed implementation tasks for each phase are expanded into individual execution plan files (`phase1.md`, `phase2.md`, etc.).
 
 ---
 
@@ -38,15 +38,16 @@ Below is the sequential breakdown of execution phases. Each phase represents a s
 ---
 
 ### Phase 1: Settings, API Key Management & Configuration UI
-*Target Plan File: `plans/gemini-voice/plan1.md`*
+*Target Plan File: `plans/gemini-voice/phase1.md`*
 
 #### Objective
-Enable users to configure Gemini Voice preferences, securely store their API key, and select Gemini voices within Readest settings.
+Enable users to configure Gemini Voice preferences, securely store their API key, select Gemini voices within Readest settings, and ensure API keys are stripped during backup export.
 
 #### Key Deliverables
 1. **Types & Default Configuration**:
    - Update `TTSConfig` interface in `apps/readest-app/src/types/book.ts` to include Gemini-specific fields (`geminiApiKey`, `geminiVoice`).
    - Define defaults in `DEFAULT_TTS_CONFIG` within `apps/readest-app/src/services/constants.ts`.
+   - Add `ttsConfig.geminiApiKey` to `BACKUP_SETTINGS_CREDENTIAL_FIELDS` in `apps/readest-app/src/services/backupService.ts` to prevent unencrypted exports.
 2. **Settings UI Component**:
    - Add Gemini Voice configuration UI under TTS / AI Settings.
    - Include API Key input field (masked/password input) and voice selection dropdown (e.g., Puck, Charon, Kore, Fenrir, Aoede).
@@ -56,11 +57,12 @@ Enable users to configure Gemini Voice preferences, securely store their API key
 #### Acceptance Criteria
 - API Key and voice selection persist across app reloads via `settingsService`.
 - User receives immediate UI feedback when validating an API key.
+- Unencrypted backups strip `geminiApiKey` unless credentials are explicitly included.
 
 ---
 
 ### Phase 2: Core `GeminiTTSClient` & Audio Processing Utilities
-*Target Plan File: `plans/gemini-voice/plan2.md`*
+*Target Plan File: `plans/gemini-voice/phase2.md`*
 
 #### Objective
 Build the core `GeminiTTSClient` class conforming to the `TTSClient` interface and implement audio processing logic for raw PCM data returned by Gemini API.
@@ -83,7 +85,7 @@ Build the core `GeminiTTSClient` class conforming to the `TTSClient` interface a
 ---
 
 ### Phase 3: Resilience, Error Handling & Rate Limiting
-*Target Plan File: `plans/gemini-voice/plan3.md`*
+*Target Plan File: `plans/gemini-voice/phase3.md`*
 
 #### Objective
 Provide robust network error handling, handle Gemini API HTTP 429 rate limits, and maintain state synchronization with `TTSController`.
@@ -105,7 +107,7 @@ Provide robust network error handling, handle Gemini API HTTP 429 rate limits, a
 ---
 
 ### Phase 4: Preloading, Sentence Synchronization & Audio Caching
-*Target Plan File: `plans/gemini-voice/plan4.md`*
+*Target Plan File: `plans/gemini-voice/phase4.md`*
 
 #### Objective
 Ensure uninterrupted playback through background sentence preloading, accurate reading highlight synchronization, and efficient caching.
@@ -127,7 +129,7 @@ Ensure uninterrupted playback through background sentence preloading, accurate r
 ---
 
 ### Phase 5: Integration, Verification & Testing
-*Target Plan File: `plans/gemini-voice/plan5.md`*
+*Target Plan File: `plans/gemini-voice/phase5.md`*
 
 #### Objective
 Thoroughly test all components, ensure strict TypeScript type checking, and verify linting compliance across the repository.
