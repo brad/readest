@@ -106,25 +106,40 @@ Provide robust network error handling, handle Gemini API HTTP 429 rate limits, a
 
 ---
 
-### Phase 4: Preloading, Sentence Synchronization & Audio Caching
-*Target Plan File: `plans/gemini-voice/phase4.md`*
+### Phase 4A: Preloading & Sentence Synchronization
+*Target Plan File: `plans/gemini-voice/phase4a.md`*
 
 #### Objective
-Ensure uninterrupted playback through background sentence preloading, accurate reading highlight synchronization, and efficient caching.
+Ensure uninterrupted playback through background sentence preloading and accurate reading highlight synchronization (`speakMark`).
 
 #### Key Deliverables
 1. **Background Audio Preloading**:
-   - Pre-fetch and synthesize upcoming sentences/paragraphs while current chunk plays.
+   - Pre-fetch and synthesize upcoming sentences/paragraphs while current chunk plays using `BufferedTTSClient`'s scheduler.
 2. **Highlight Synchronization (`speakMark`)**:
-   - Call `this.controller.dispatchSpeakMark(mark)` as audio segments play to synchronize reading position highlights in the book view.
-3. **Audio Caching Layer**:
-   - Store synthesized WAVE audio buffers in local store (`bookCacheStore` / IndexedDB) indexed by text hash and voice settings.
-   - Skip network fetch if synthesized audio already exists in cache.
+   - Call `this.controller.dispatchSpeakMark(mark)` as audio segments become audible (`chunk-start`) to synchronize reading position highlights in the book view.
 
 #### Acceptance Criteria
 - Transition between sentences is smooth with minimal buffering pause.
 - Text highlights follow audio playback accurately.
-- Previously read content plays instantly from cache.
+
+---
+
+### Phase 4B: Audio Caching & Section Compaction
+*Target Plan File: `plans/gemini-voice/phase4b.md`*
+
+#### Objective
+Provide persistent local audio caching, offline pre-downloading, and section pack compaction for Gemini Voice synthesized audio.
+
+#### Key Deliverables
+1. **Audio Caching Layer**:
+   - Store synthesized WAVE audio buffers in local store (`BookTTSCacheStore` / SQLite) via `CachingProvider`, indexed deterministically by prompt text, language, voice, and pitch.
+   - Skip network fetch if synthesized audio already exists in cache.
+2. **Offline Pre-downloading & Section Pack Compaction**:
+   - Support headless chapter downloading (`warmSentence`) and section compaction (`compact`).
+
+#### Acceptance Criteria
+- Previously read content plays instantly from cache without firing Gemini API requests.
+- Headless chapter downloading populates local cache for offline reading.
 
 ---
 
@@ -139,7 +154,7 @@ Thoroughly test all components, ensure strict TypeScript type checking, and veri
    - Write tests for PCM WAV header generator and Base64 padding fixer.
    - Test request schema serialization (camelCase check).
 2. **Integration Tests**:
-   - Test `GeminiTTSClient` lifecycle, error recovery, and preloading queue logic.
+   - Test `GeminiTTSClient` lifecycle, error recovery, preloading queue logic, and caching.
 3. **Type Checking & Code Formatting**:
    - Run `pnpm exec biome check --write` across modified files.
    - Run TypeScript type checking (`NODE_OPTIONS="--max-old-space-size=4096" pnpm exec tsc --noEmit`).
