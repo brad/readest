@@ -280,5 +280,31 @@ describe('GeminiTTSClient', () => {
       expect(events.at(-1)).toMatchObject({ code: 'error', message: 'Aborted' });
       expect(ctx().sources.every((s) => s.stopped)).toBe(true);
     });
+
+    test('yields error code when MAX_CONSECUTIVE_SKIPS is exceeded', async () => {
+      parsedMarks = [
+        { name: '0', text: 'Sentence 1', language: 'en' },
+        { name: '1', text: 'Sentence 2', language: 'en' },
+        { name: '2', text: 'Sentence 3', language: 'en' },
+        { name: '3', text: 'Sentence 4', language: 'en' },
+        { name: '4', text: 'Sentence 5', language: 'en' },
+      ];
+
+      vi.spyOn(GeminiSpeechProvider.prototype, 'synthesize').mockRejectedValue(
+        new Error('Synthesis failed'),
+      );
+
+      await client.init();
+      client.setApiKey('test-key');
+
+      const abortController = new AbortController();
+      const { events, done } = collectSpeak(client, abortController.signal, false);
+
+      await done;
+
+      const errorEvent = events.find((e) => e.code === 'error');
+      expect(errorEvent).toBeDefined();
+      expect(errorEvent?.message).toBe('Synthesis failed');
+    });
   });
 });
