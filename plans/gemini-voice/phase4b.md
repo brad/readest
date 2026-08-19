@@ -33,7 +33,7 @@ By the end of Phase 4B:
 ### 3.1 Cache Key Determinism
 `CachingProvider` computes an MD5 cache key using `computeTTSCacheKey`:
 
-$$\text{Key} = \text{MD5}(\text{JSON.stringify}([\text{"tts-v1"}, \text{"gemini-tts"}, \text{lang}, \text{voice}, \text{pitch}, \text{text}]))$$
+$$\text{Key} = \text{MD5}(\text{JSON.stringify}([\text{"tts-v1"}, \text{"gemini-tts"}, \text{lang}, \text{model}, \text{voice}, \text{pitch}, \text{text}]))$$
 
 Note that playback **rate** is excluded from the cache key because Gemini audio is synthesized at rate 1.0 and time-stretched at playout time (via WSOLA in WebAudio or rate scaling in Native AVPlayer). This allows a single cached audio file to be replayed at any reading speed.
 

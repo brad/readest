@@ -23,7 +23,7 @@ By the end of Phase 5A:
 | --- | --- |
 | `apps/readest-app/src/__tests__/services/tts-pcm.test.ts` | Test `padBase64` with unpadded, 1-char, 2-char missing padding strings. Test `createWavFromPcm` 44-byte RIFF/WAVE header offsets (RIFF, WAVE, fmt, data, sample rate 24000Hz, 16-bit mono) and binary payload embedding. |
 | `apps/readest-app/src/__tests__/services/tts/GeminiSpeechProvider.test.ts` | Mock `fetch` to verify `camelCase` REST payload (`responseModalities`, `speechConfig`, `voiceConfig`, `prebuiltVoiceConfig`, `voiceName`), HTTP 200 response decoding, HTTP 400/401/403/404 throwing `SpeechSynthesisPermanentError`, HTTP 429 `Retry-After` backoff parsing, and HTTP 5xx retries. |
-| `apps/readest-app/src/__tests__/services/constants.test.ts` | Assert default TTS config contains `geminiApiKey: ''` and `geminiVoice: 'Puck'`, and `GEMINI_PREBUILT_VOICES` list contains expected voices (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`). |
+| `apps/readest-app/src/__tests__/services/constants.test.ts` | Assert default TTS config contains `geminiApiKey: ''`, `geminiVoice: 'Puck'`, and `geminiModel: 'gemini-2.5-flash'`, and `GEMINI_PREBUILT_VOICES` list contains expected voices (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`). |
 | `apps/readest-app/src/__tests__/services/backup-settings.test.ts` | Test that `geminiApiKey` is sanitized when exporting backups without credentials and preserved when `includeCredentials: true`. |
 
 ---

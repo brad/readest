@@ -12,9 +12,10 @@ Phase 1 focuses on laying the foundational settings, state management, security 
 
 By the end of Phase 1, users will be able to:
 1. Enter and store their Google Gemini API Key safely in Readest settings.
-2. Select a default Gemini prebuilt voice (e.g. Puck, Charon, Kore, Fenrir, Aoede) for TTS speech synthesis.
-3. Validate their API Key directly in the UI using Gemini's REST endpoint.
-4. Export backups of their Readest configuration without leaking `geminiApiKey` in plain text.
+2. Retrieve available Gemini models dynamically via `GET v1beta/models?key={apiKey}` and select a model (`geminiModel`) to prevent 404 model errors across API model revisions.
+3. Select a default Gemini prebuilt voice (e.g. Puck, Charon, Kore, Fenrir, Aoede) for TTS speech synthesis.
+4. Validate their API Key directly in the UI and refresh the model list.
+5. Export backups of their Readest configuration without leaking `geminiApiKey` in plain text.
 
 ---
 
@@ -22,13 +23,13 @@ By the end of Phase 1, users will be able to:
 
 | File Path | Description / Changes |
 | --- | --- |
-| `apps/readest-app/src/types/book.ts` | Extend `TTSConfig` interface with `geminiApiKey` and `geminiVoice`. |
-| `apps/readest-app/src/services/constants.ts` | Update `DEFAULT_TTS_CONFIG` defaults and export `GEMINI_PREBUILT_VOICES` constants. |
+| `apps/readest-app/src/types/book.ts` | Extend `TTSConfig` interface with `geminiApiKey`, `geminiVoice`, and `geminiModel`. |
+| `apps/readest-app/src/services/constants.ts` | Update `DEFAULT_TTS_CONFIG` defaults (`geminiModel: 'gemini-2.5-flash'`) and export `GEMINI_PREBUILT_VOICES` constants. |
 | `apps/readest-app/src/services/backupService.ts` | Add `'globalViewSettings.geminiApiKey'` to `BACKUP_SETTINGS_CREDENTIAL_FIELDS`. |
-| `apps/readest-app/src/components/settings/TTSPanel.tsx` | Add Gemini Voice settings section (API Key input, voice selector, test/validate button). |
-| `apps/readest-app/src/__tests__/services/constants.test.ts` | Update default TTS config tests to check `geminiVoice` and `geminiApiKey`. |
+| `apps/readest-app/src/components/settings/TTSPanel.tsx` | Add Gemini Voice settings section (API Key input, dynamic model selector dropdown, voice selector, test/validate button). |
+| `apps/readest-app/src/__tests__/services/constants.test.ts` | Update default TTS config tests to check `geminiVoice`, `geminiApiKey`, and `geminiModel`. |
 | `apps/readest-app/src/__tests__/services/backup-settings.test.ts` | Add tests confirming `geminiApiKey` is sanitized on backup export unless credentials are included. |
-| `apps/readest-app/src/__tests__/components/settings/TTSPanel.test.ts` | Unit tests for Gemini API key validation. |
+| `apps/readest-app/src/__tests__/components/settings/TTSPanel.test.ts` | Unit tests for Gemini API key validation and model list population. |
 
 ---
 
@@ -52,6 +53,7 @@ export interface TTSConfig {
   // Gemini Voice Extensions
   geminiApiKey?: string;
   geminiVoice?: string;
+  geminiModel?: string;
 }
 ```
 
@@ -68,11 +70,13 @@ export const GEMINI_PREBUILT_VOICES = [
 ] as const;
 
 export const DEFAULT_GEMINI_VOICE = 'Puck';
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 
 export const DEFAULT_TTS_CONFIG: TTSConfig = {
   // ... existing defaults
   geminiApiKey: '',
   geminiVoice: DEFAULT_GEMINI_VOICE,
+  geminiModel: DEFAULT_GEMINI_MODEL,
 };
 ```
 
@@ -103,20 +107,28 @@ export const BACKUP_SETTINGS_CREDENTIAL_FIELDS = [
 
 ## 4. UI Specification (`TTSPanel.tsx`)
 
-A new `BoxedList` section titled **Gemini Voice (AI Speech)** has been added to `apps/readest-app/src/components/settings/TTSPanel.tsx`.
+A new `BoxedList` section titled **Gemini Voice (AI Speech)** is provided in `apps/readest-app/src/components/settings/TTSPanel.tsx`:
+1. **API Key Input**: Password-masked text input for `geminiApiKey`.
+2. **Validate & Refresh Models Button**: Sends `GET https://generativelanguage.googleapis.com/v1beta/models?key={apiKey}`.
+3. **Model Selection Dropdown**: Populated dynamically from `v1beta/models` response (filtering for models supporting `generateContent` or audio generation, e.g., `gemini-2.5-flash`, `gemini-2.0-flash`). Falls back to `gemini-2.5-flash` if list cannot be fetched.
+4. **Voice Selection Dropdown**: Prebuilt Gemini voices (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`).
 
 ---
 
-## 5. API Key Validation Mechanism
+## 5. API Key Validation & Dynamic Model Retrieval Mechanism
 
-To validate the user's API Key without invoking paid/heavy audio synthesis, perform a lightweight `GET` request against the Gemini REST API `v1beta/models` endpoint.
+To validate the user's API Key and prevent hardcoded 404 model errors as Google rolls out new Gemini model revisions:
+1. Issue a `GET` request to `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`.
+2. If successful (HTTP 200), parse the `models` array, extract model IDs (e.g., `models/gemini-2.5-flash` -> `gemini-2.5-flash`), and populate the model selection dropdown in `TTSPanel.tsx`.
+3. Save the user's selected `geminiModel` in settings so subsequent TTS synthesis requests invoke `v1beta/models/${geminiModel}:generateContent`.
 
 ---
 
 ## 6. Acceptance & Verification Criteria
 
-- [x] **Type Integrity**: `geminiApiKey` and `geminiVoice` on `TTSConfig`.
-- [x] **Persistence**: Settings entered in `TTSPanel` persist to `settingsStore` / `globalViewSettings`.
+- [x] **Type Integrity**: `geminiApiKey`, `geminiVoice`, and `geminiModel` on `TTSConfig`.
+- [x] **Persistence**: Settings entered in `TTSPanel` (`geminiApiKey`, `geminiModel`, `geminiVoice`) persist to `settingsStore` / `globalViewSettings`.
+- [x] **Dynamic Model Selection**: Querying `v1beta/models` populates available Gemini models in the settings dropdown.
 - [x] **Backup Security**: Exporting a settings backup without credentials strips `geminiApiKey`. Exporting with credentials includes `geminiApiKey`.
-- [x] **UI Validation**: Testing a valid API key shows green success text; testing an invalid key displays an error message without crashing.
+- [x] **UI Validation**: Testing a valid API key shows green success text and updates available models; testing an invalid key displays an error message without crashing.
 - [x] **Linting & Code Style**: Passes `pnpm exec biome check` without formatting errors.
