@@ -3,6 +3,8 @@ import type { TTSMessageEvent } from '@/services/tts/TTSClient';
 import type { TTSController } from '@/services/tts/TTSController';
 import type { GeminiTTSClient as GeminiTTSClientClass } from '@/services/tts/GeminiTTSClient';
 import type { GeminiSpeechProvider as GeminiSpeechProviderClass } from '@/services/tts/providers/gemini';
+import type { AppService } from '@/types/system';
+import type { MockInstance } from 'vitest';
 import { FakeAudioContext } from '../tts-fake-audio';
 
 let parsedMarks: Array<{ name: string; text: string; language: string }> = [];
@@ -33,6 +35,7 @@ interface MockController {
   dispatchSpeakMark: ReturnType<typeof vi.fn>;
   prepareSpeakWords: ReturnType<typeof vi.fn>;
   dispatchSpeakWord: ReturnType<typeof vi.fn>;
+  bookKey?: string;
 }
 
 describe('GeminiTTSClient', () => {
@@ -121,6 +124,81 @@ describe('GeminiTTSClient', () => {
     expect(await client.getAllVoices()).toHaveLength(0);
   });
 
+  describe('Audio Caching, Pre-downloading and Compaction', () => {
+    let mockAppService: AppService;
+    let cachedClient: GeminiTTSClientClass;
+    let synthesizeSpy: MockInstance;
+
+    beforeEach(async () => {
+      const { NodeDatabaseService } = await import('@/services/database/nodeDatabaseService');
+      const db = await NodeDatabaseService.open(':memory:');
+      mockAppService = {
+        createDir: vi.fn().mockResolvedValue(undefined),
+        openDatabase: vi.fn().mockResolvedValue(db),
+      } as unknown as AppService;
+
+      controller.bookKey = 'book123-hash';
+
+      cachedClient = new GeminiTTSClient(controller as unknown as TTSController, mockAppService);
+      await cachedClient.init();
+      cachedClient.setApiKey('test-key');
+
+      synthesizeSpy = vi
+        .spyOn(GeminiSpeechProvider.prototype, 'synthesize')
+        .mockImplementation(async () => audioOf(1));
+    });
+
+    test('canDownload returns false without appService and true with appService', () => {
+      expect(client.canDownload()).toBe(false);
+      expect(cachedClient.canDownload()).toBe(true);
+    });
+
+    test('caching provider caches synthesized audio and avoids duplicate API calls on cache hit', async () => {
+      const signal = new AbortController().signal;
+
+      // First call: cache miss, triggers synthesize
+      for await (const _ of cachedClient.speak('<ssml/>', signal, true)) {
+        void _;
+      }
+      await flush();
+
+      expect(synthesizeSpy).toHaveBeenCalledTimes(3);
+
+      synthesizeSpy.mockClear();
+
+      // Second call: cache hit, no new synthesize calls
+      for await (const _ of cachedClient.speak('<ssml/>', signal, true)) {
+        void _;
+      }
+      await flush();
+
+      expect(synthesizeSpy).toHaveBeenCalledTimes(0);
+    });
+
+    test('warmSentence synthesizes and caches sentence for offline reading', async () => {
+      const result = await cachedClient.warmSentence(0, 0, 'en', 'Offline sentence text');
+      expect(result).toBe(true);
+      expect(synthesizeSpy).toHaveBeenCalledTimes(1);
+
+      // Re-warming the same sentence hits the cache and returns true without re-synthesizing
+      synthesizeSpy.mockClear();
+      const cachedResult = await cachedClient.warmSentence(0, 0, 'en', 'Offline sentence text');
+      expect(cachedResult).toBe(true);
+      expect(synthesizeSpy).toHaveBeenCalledTimes(0);
+    });
+
+    test('compactCache, registerSectionManifest, and getSectionDurations execute cleanly', async () => {
+      cachedClient.registerSectionManifest(0, ['0:First sentence.', '1:Second sentence.']);
+      await cachedClient.warmSentence(0, 0, 'en', 'First sentence.');
+      await cachedClient.warmSentence(0, 1, 'en', 'Second sentence.');
+
+      const durations = await cachedClient.getSectionDurations(0);
+      expect(durations).toBeDefined();
+
+      await expect(cachedClient.compactCache()).resolves.toBeUndefined();
+    });
+  });
+
   describe('Preloading and Playback', () => {
     const collectSpeak = (client: GeminiTTSClientClass, signal: AbortSignal, preload = false) => {
       const events: TTSMessageEvent[] = [];
@@ -148,6 +226,7 @@ describe('GeminiTTSClient', () => {
       await done;
 
       expect(events).toEqual([{ code: 'end', message: 'Preload finished' }]);
+      await flush();
       expect(synthesizeSpy).toHaveBeenCalledTimes(3);
     });
 

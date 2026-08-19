@@ -2,7 +2,7 @@
 
 **Target Plan File**: `plans/gemini-voice/phase4b.md`
 **Parent Plan**: `plans/gemini-voice/overview.md`
-**Status**: Draft / Ready for Implementation
+**Status**: Completed
 
 ---
 
@@ -70,6 +70,6 @@ When `appService` is provided to `GeminiTTSClient`, `GeminiTTSClient` decorates 
 
 ## 5. Acceptance & Verification Criteria
 
-- [ ] **Instant Cache Hits**: Re-reading previously spoken content plays immediately from local cache without triggering network requests to Gemini API.
-- [ ] **Offline Pre-downloading**: Headless chapter downloading (`warmSentence`) populates local cache for offline reading.
-- [ ] **Compaction**: Fully cached sections produce compacted section packs.
+- [x] **Instant Cache Hits**: Re-reading previously spoken content plays immediately from local cache without triggering network requests to Gemini API.
+- [x] **Offline Pre-downloading**: Headless chapter downloading (`warmSentence`) populates local cache for offline reading.
+- [x] **Compaction**: Fully cached sections produce compacted section packs.
