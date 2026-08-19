@@ -151,7 +151,6 @@ export class TTSSessionManager extends EventTarget {
     if (!session || this.#stopping) return;
     this.#stopping = true;
     const meta = this.#meta;
-    const wasDetached = !session.controller.isViewAttached;
     this.#session = null;
     this.#meta = null;
     this.#clearSleepTimer();
@@ -168,9 +167,10 @@ export class TTSSessionManager extends EventTarget {
         type: 'info',
         timeout: 3000,
       });
-    } else if (reason === 'error' && wasDetached) {
+    } else if (reason === 'error') {
+      const titleStr = meta?.title ? `: ${meta.title}` : '';
       eventDispatcher.dispatch('toast', {
-        message: `${_('Read aloud stopped')}: ${meta?.title ?? ''}`,
+        message: `${_('Read aloud stopped')}${titleStr}`,
         type: 'error',
         timeout: 5000,
       });
