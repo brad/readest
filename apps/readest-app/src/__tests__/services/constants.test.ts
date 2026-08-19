@@ -647,8 +647,22 @@ describe('services/constants', () => {
   describe('DEFAULT_TTS_CONFIG', () => {
     it('has GEMINI_PREBUILT_VOICES and DEFAULT_GEMINI_VOICE', () => {
       expect(Array.isArray(GEMINI_PREBUILT_VOICES)).toBe(true);
-      expect(GEMINI_PREBUILT_VOICES.length).toBeGreaterThan(0);
+      expect(GEMINI_PREBUILT_VOICES.length).toBe(5);
+      expect(GEMINI_PREBUILT_VOICES.map((v) => v.id)).toEqual([
+        'Puck',
+        'Charon',
+        'Kore',
+        'Fenrir',
+        'Aoede',
+      ]);
+      for (const voice of GEMINI_PREBUILT_VOICES) {
+        expect(typeof voice.id).toBe('string');
+        expect(typeof voice.name).toBe('string');
+        expect(['male', 'female']).toContain(voice.gender);
+      }
       expect(DEFAULT_GEMINI_VOICE).toBe('Puck');
+      expect(DEFAULT_TTS_CONFIG.geminiApiKey).toBe('');
+      expect(DEFAULT_TTS_CONFIG.geminiVoice).toBe('Puck');
     });
 
     it('has expected properties', () => {

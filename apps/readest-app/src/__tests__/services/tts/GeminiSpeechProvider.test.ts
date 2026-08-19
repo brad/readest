@@ -100,6 +100,18 @@ describe('GeminiSpeechProvider', () => {
     expect(provider.cacheable).toBe(true);
   });
 
+  it('initializes successfully via init()', async () => {
+    const initialized = await provider.init();
+    expect(initialized).toBe(true);
+  });
+
+  it('returns prebuilt voices via getAllVoices()', async () => {
+    const voices = await provider.getAllVoices();
+    expect(voices.length).toBe(5);
+    expect(voices.map((v) => v.id)).toEqual(['Puck', 'Charon', 'Kore', 'Fenrir', 'Aoede']);
+    expect(voices.every((v) => v.lang === 'en-US')).toBe(true);
+  });
+
   it('throws SpeechSynthesisPermanentError if API key is not set', async () => {
     const controller = new AbortController();
     await expect(
@@ -145,7 +157,7 @@ describe('GeminiSpeechProvider', () => {
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, options] = fetchMock.mock.calls[0];
+    const [url, options] = fetchMock.mock.calls[0]! as [string, RequestInit];
 
     expect(url).toContain(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test-key',
@@ -153,7 +165,7 @@ describe('GeminiSpeechProvider', () => {
     expect(options.method).toBe('POST');
     expect(options.headers).toEqual({ 'Content-Type': 'application/json' });
 
-    const payload = JSON.parse(options.body);
+    const payload = JSON.parse(options.body as string);
 
     expect(payload.contents).toEqual([{ parts: [{ text: 'Hello world' }] }]);
     expect(payload.generationConfig.responseModalities).toEqual(['AUDIO']);
@@ -261,5 +273,40 @@ describe('GeminiSpeechProvider', () => {
     await expect(promise).rejects.toThrow('Gemini API HTTP 503: Service Unavailable');
     await expect(promise).rejects.not.toBeInstanceOf(SpeechSynthesisPermanentError);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws SpeechSynthesisPermanentError when no audio data is received in response', async () => {
+    provider.setApiKey('test-key');
+
+    const emptyCandidatesResponse = {
+      ok: true,
+      status: 200,
+      json: async () => ({ candidates: [] }),
+    };
+
+    const fetchMock = vi.fn().mockResolvedValue(emptyCandidatesResponse);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const controller = new AbortController();
+    await expect(
+      provider.synthesize(
+        { lang: 'en-US', text: 'Hello', voice: 'Puck', pitch: 1.0 },
+        controller.signal,
+      ),
+    ).rejects.toThrow(SpeechSynthesisPermanentError);
+  });
+
+  it('throws immediately if signal is already aborted before fetch', async () => {
+    provider.setApiKey('test-key');
+
+    const controller = new AbortController();
+    controller.abort(new Error('Abort requested'));
+
+    await expect(
+      provider.synthesize(
+        { lang: 'en-US', text: 'Hello', voice: 'Puck', pitch: 1.0 },
+        controller.signal,
+      ),
+    ).rejects.toThrow('Abort requested');
   });
 });

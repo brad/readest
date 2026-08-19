@@ -2,7 +2,7 @@
 
 **Target Plan File**: `plans/gemini-voice/phase5a.md`
 **Parent Plan**: `plans/gemini-voice/overview.md`
-**Status**: Draft / Ready for Implementation
+**Status**: Completed
 
 ---
 
@@ -165,7 +165,7 @@ describe('GeminiSpeechProvider', () => {
 
 ## 4. Acceptance Criteria
 
-- [ ] `tts-pcm.test.ts` passes and validates Base64 padding normalization and RIFF/WAVE header binary generation.
-- [ ] `GeminiSpeechProvider.test.ts` verifies strict camelCase REST request payloads and error classifications.
-- [ ] `constants.test.ts` verifies default settings configuration for Gemini Voice.
-- [ ] `backup-settings.test.ts` verifies `geminiApiKey` credential sanitization in backups.
+- [x] `tts-pcm.test.ts` passes and validates Base64 padding normalization and RIFF/WAVE header binary generation.
+- [x] `GeminiSpeechProvider.test.ts` verifies strict camelCase REST request payloads and error classifications.
+- [x] `constants.test.ts` verifies default settings configuration for Gemini Voice.
+- [x] `backup-settings.test.ts` verifies `geminiApiKey` credential sanitization in backups.
