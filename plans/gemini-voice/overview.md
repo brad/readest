@@ -143,22 +143,33 @@ Provide persistent local audio caching, offline pre-downloading, and section pac
 
 ---
 
-### Phase 5: Integration, Verification & Testing
-*Target Plan File: `plans/gemini-voice/phase5.md`*
+### Phase 5A: Unit & Provider Testing
+*Target Plan File: `plans/gemini-voice/phase5a.md`*
 
 #### Objective
-Thoroughly test all components, ensure strict TypeScript type checking, and verify linting compliance across the repository.
+Test low-level PCM audio conversion utilities, Gemini REST request schema serialization, error code classifications, rate limit backoff logic, default constants, and backup sanitization.
 
 #### Key Deliverables
-1. **Unit & Utility Tests**:
-   - Write tests for PCM WAV header generator and Base64 padding fixer.
-   - Test request schema serialization (camelCase check).
-2. **Integration Tests**:
-   - Test `GeminiTTSClient` lifecycle, error recovery, preloading queue logic, and caching.
-3. **Type Checking & Code Formatting**:
-   - Run `pnpm exec biome check --write` across modified files.
-   - Run TypeScript type checking (`NODE_OPTIONS="--max-old-space-size=4096" pnpm exec tsc --noEmit`).
+1. **Audio PCM Utility Tests**: Verify `padBase64` padding normalization and `createWavFromPcm` RIFF/WAVE header generation in `tts-pcm.test.ts`.
+2. **Provider Tests**: Verify `GeminiSpeechProvider` camelCase REST payload serialization, HTTP 200/400/401/403/429/5xx parsing, and `Retry-After` backoff handling in `GeminiSpeechProvider.test.ts`.
+3. **Configuration & Security Tests**: Verify `DEFAULT_TTS_CONFIG` defaults and `geminiApiKey` credential sanitization in `constants.test.ts` and `backup-settings.test.ts`.
 
 #### Acceptance Criteria
-- All unit and integration tests pass cleanly.
-- Code complies with repository Biome formatting and TypeScript strict mode.
+- Unit tests for PCM utilities, Gemini provider serialization, constants, and backup sanitization pass cleanly.
+
+---
+
+### Phase 5B: Integration, UI & Verification Testing
+*Target Plan File: `plans/gemini-voice/phase5b.md`*
+
+#### Objective
+Test `GeminiTTSClient` lifecycle, preloading queue execution, cache integration, UI settings panel controls, and verify repository quality across the monorepo.
+
+#### Key Deliverables
+1. **Integration Tests**: Verify `GeminiTTSClient` initialization, voice listing, preloading queue execution, cache hit/miss behavior, and `code: 'error'` loop termination in `GeminiTTSClient.test.ts`.
+2. **UI & Settings Tests**: Verify `TTSPanel.tsx` rendering, API key entry masking, voice dropdown selection, and key validation triggering in `TTSPanel.test.tsx`.
+3. **Repository Verification**: Execute Biome formatting (`pnpm exec biome check --write`), strict TypeScript checking (`NODE_OPTIONS="--max-old-space-size=4096" pnpm exec tsc --noEmit`), and full test suite execution (`pnpm test`).
+
+#### Acceptance Criteria
+- Integration and UI test suites pass cleanly.
+- `tsc --noEmit` and `biome check` pass with zero errors across the monorepo.
