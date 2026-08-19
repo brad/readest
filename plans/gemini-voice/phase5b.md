@@ -2,7 +2,7 @@
 
 **Target Plan File**: `plans/gemini-voice/phase5b.md`
 **Parent Plan**: `plans/gemini-voice/overview.md`
-**Status**: Draft / Ready for Implementation
+**Status**: Completed
 
 ---
 
@@ -76,8 +76,8 @@ pnpm test
 
 ## 4. Acceptance Criteria
 
-- [ ] `GeminiTTSClient.test.ts` passes, verifying client initialization, preloading, caching integration, and capability reporting.
-- [ ] `TTSPanel.test.tsx` passes, verifying UI interactions, key masking, voice selection, and key validation.
-- [ ] `pnpm exec biome check` reports zero linting or formatting errors across modified files.
-- [ ] `tsc --noEmit` completes with zero TypeScript errors across the repository.
-- [ ] `pnpm test` executes cleanly with all unit and integration test suites passing.
+ - [x] `GeminiTTSClient.test.ts` passes, verifying client initialization, preloading, caching integration, and capability reporting.
+ - [x] `TTSPanel.test.tsx` passes, verifying UI interactions, key masking, voice selection, and key validation.
+ - [x] `pnpm exec biome check` reports zero linting or formatting errors across modified files.
+ - [x] `tsc --noEmit` completes with zero TypeScript errors across the repository.
+ - [x] `pnpm test` executes cleanly with all unit and integration test suites passing.
