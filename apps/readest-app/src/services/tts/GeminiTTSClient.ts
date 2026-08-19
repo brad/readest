@@ -1,3 +1,4 @@
+import type { TTSCapabilities } from './TTSClient';
 import { AppService } from '@/types/system';
 import { BufferedTTSClient } from './BufferedTTSClient';
 import { BookTTSCacheStore, getTTSCacheConfig } from './providers/bookCacheStore';
@@ -35,5 +36,12 @@ export class GeminiTTSClient extends BufferedTTSClient {
 
   setApiKey(apiKey: string): void {
     this.#geminiProvider.setApiKey(apiKey);
+  }
+
+  override getCapabilities(): TTSCapabilities {
+    return {
+      ...super.getCapabilities(),
+      wordBoundaries: false,
+    };
   }
 }
