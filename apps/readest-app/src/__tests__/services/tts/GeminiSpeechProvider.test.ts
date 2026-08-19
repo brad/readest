@@ -148,7 +148,7 @@ describe('GeminiSpeechProvider', () => {
     const [url, options] = fetchMock.mock.calls[0];
 
     expect(url).toContain(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=test-key',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test-key',
     );
     expect(options.method).toBe('POST');
     expect(options.headers).toEqual({ 'Content-Type': 'application/json' });

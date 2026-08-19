@@ -219,6 +219,7 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
       setShowIndicator(false);
       setShowBackToCurrentTTSLocation(false);
       setTTSEnabled(bookKey, false);
+      getView(bookKey)?.deselect();
       setTimeoutOption(0);
       setTimeoutTimestamp(0);
       onRequestHidePanel?.();
