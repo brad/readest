@@ -5,7 +5,11 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useResetViewSettings } from '@/hooks/useResetSettings';
 import { useTranslation } from '@/hooks/useTranslation';
 import { saveViewSettings } from '@/helpers/settings';
-import { DEFAULT_GEMINI_VOICE, GEMINI_PREBUILT_VOICES } from '@/services/constants';
+import {
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_GEMINI_VOICE,
+  GEMINI_PREBUILT_VOICES,
+} from '@/services/constants';
 import { SettingsPanelPanelProp } from './SettingsDialog';
 import {
   TTSHighlightGranularity,
@@ -18,7 +22,7 @@ import TTSHighlightStyleEditor, { TTSHighlightStyle } from './theme/TTSHighlight
 
 export async function validateGeminiApiKey(
   apiKey: string,
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; models?: string[] }> {
   if (!apiKey.trim()) {
     return { success: false, message: 'API key cannot be empty.' };
   }
@@ -28,7 +32,18 @@ export async function validateGeminiApiKey(
       { method: 'GET' },
     );
     if (response.ok) {
-      return { success: true, message: 'Gemini API Key is valid!' };
+      const data = await response.json().catch(() => ({}));
+      const rawModels: Array<{ name?: string; supportedGenerationMethods?: string[] }> =
+        data?.models || [];
+      const models = rawModels
+        .filter(
+          (m) =>
+            m.name &&
+            (!m.supportedGenerationMethods ||
+              m.supportedGenerationMethods.includes('generateContent')),
+        )
+        .map((m) => m.name!.replace(/^models\//, ''));
+      return { success: true, message: 'Gemini API Key is valid!', models };
     }
     const errData = await response.json().catch(() => ({}));
     const errorMessage =
@@ -68,6 +83,12 @@ const TTSPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset }
 
   const [geminiApiKey, setGeminiApiKey] = useState(viewSettings.geminiApiKey ?? '');
   const [geminiVoice, setGeminiVoice] = useState(viewSettings.geminiVoice ?? DEFAULT_GEMINI_VOICE);
+  const [geminiModel, setGeminiModel] = useState(viewSettings.geminiModel ?? DEFAULT_GEMINI_MODEL);
+  const [availableModels, setAvailableModels] = useState<Array<{ value: string; label: string }>>([
+    { value: 'gemini-2.5-flash', label: 'gemini-2.5-flash' },
+    { value: 'gemini-2.0-flash', label: 'gemini-2.0-flash' },
+    { value: 'gemini-1.5-flash', label: 'gemini-1.5-flash' },
+  ]);
   const [isValidatingKey, setIsValidatingKey] = useState(false);
   const [validationStatus, setValidationStatus] = useState<{
     success: boolean;
@@ -92,6 +113,7 @@ const TTSPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset }
       >,
       geminiApiKey: setGeminiApiKey as React.Dispatch<React.SetStateAction<string>>,
       geminiVoice: setGeminiVoice as React.Dispatch<React.SetStateAction<string>>,
+      geminiModel: setGeminiModel as React.Dispatch<React.SetStateAction<string>>,
     });
   };
 
@@ -137,11 +159,20 @@ const TTSPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geminiVoice]);
 
+  useEffect(() => {
+    if (geminiModel === viewSettings.geminiModel) return;
+    saveViewSettings(envConfig, bookKey, 'geminiModel', geminiModel, false, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geminiModel]);
+
   const handleValidateApiKey = async () => {
     setIsValidatingKey(true);
     setValidationStatus(null);
     const result = await validateGeminiApiKey(geminiApiKey);
     setValidationStatus(result);
+    if (result.success && result.models && result.models.length > 0) {
+      setAvailableModels(result.models.map((m) => ({ value: m, label: m })));
+    }
     setIsValidatingKey(false);
   };
 
@@ -222,6 +253,19 @@ const TTSPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset }
             {validationStatus.message}
           </div>
         )}
+
+        <SettingsRow label={_('Gemini Model')}>
+          <SettingsSelect
+            value={geminiModel}
+            onChange={(e) => setGeminiModel(e.target.value)}
+            ariaLabel={_('Gemini Model')}
+            options={
+              availableModels.some((m) => m.value === geminiModel)
+                ? availableModels
+                : [{ value: geminiModel, label: geminiModel }, ...availableModels]
+            }
+          />
+        </SettingsRow>
 
         <SettingsRow label={_('Gemini Voice')}>
           <SettingsSelect

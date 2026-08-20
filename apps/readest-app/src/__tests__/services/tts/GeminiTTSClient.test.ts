@@ -99,6 +99,13 @@ describe('GeminiTTSClient', () => {
     expect(setApiKeySpy).toHaveBeenCalledWith('test-gemini-key');
   });
 
+  test('setModel propagates model name to underlying provider', () => {
+    const setModelSpy = vi.spyOn(GeminiSpeechProvider.prototype, 'setModel');
+    const localClient = new GeminiTTSClient();
+    localClient.setModel('gemini-2.0-flash');
+    expect(setModelSpy).toHaveBeenCalledWith('gemini-2.0-flash');
+  });
+
   test('getVoices returns Gemini prebuilt voice groups', async () => {
     await client.init();
     const groups = await client.getVoices('en-US');

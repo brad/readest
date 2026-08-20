@@ -26,6 +26,7 @@ const mockViewSettings = {
   ttsHighlightOptions: { style: 'underline', color: '#ff0000' },
   geminiApiKey: 'test-api-key',
   geminiVoice: 'Puck',
+  geminiModel: 'gemini-2.5-flash',
 };
 
 const mockSettings = {
@@ -85,15 +86,21 @@ describe('validateGeminiApiKey', () => {
     expect(result.message).toContain('API key cannot be empty');
   });
 
-  it('returns success when API returns 200 OK', async () => {
+  it('returns success and models when API returns 200 OK', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ models: [] }),
+      json: async () => ({
+        models: [
+          { name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] },
+          { name: 'models/gemini-2.0-flash', supportedGenerationMethods: ['generateContent'] },
+        ],
+      }),
     } as unknown as Response);
 
     const result = await validateGeminiApiKey('valid-key');
     expect(result.success).toBe(true);
     expect(result.message).toContain('valid');
+    expect(result.models).toEqual(['gemini-2.5-flash', 'gemini-2.0-flash']);
     expect(global.fetch).toHaveBeenCalledWith(
       'https://generativelanguage.googleapis.com/v1beta/models?key=valid-key',
       { method: 'GET' },
@@ -197,6 +204,25 @@ describe('TTSPanel Component - Gemini Voice Section', () => {
     await waitFor(() => {
       expect(screen.getByText(/Gemini API key is valid!/i)).not.toBeNull();
     });
+  });
+
+  it('updates selected model and calls saveViewSettings on change', () => {
+    render(<TTSPanel bookKey='book1' onRegisterReset={vi.fn()} />);
+
+    const modelSelect = screen.getByRole('combobox', { name: 'Gemini Model' }) as HTMLSelectElement;
+    expect(modelSelect.value).toBe('gemini-2.5-flash');
+
+    fireEvent.change(modelSelect, { target: { value: 'gemini-2.0-flash' } });
+
+    expect(modelSelect.value).toBe('gemini-2.0-flash');
+    expect(mockSaveViewSettings).toHaveBeenCalledWith(
+      expect.anything(),
+      'book1',
+      'geminiModel',
+      'gemini-2.0-flash',
+      false,
+      false,
+    );
   });
 
   it('handles Test validation button click and displays failure feedback', async () => {

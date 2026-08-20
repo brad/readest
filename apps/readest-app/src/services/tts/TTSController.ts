@@ -836,6 +836,10 @@ export class TTSController extends EventTarget {
     this.ttsGeminiClient.setApiKey(apiKey);
   }
 
+  setGeminiModel(model: string): void {
+    this.ttsGeminiClient.setModel(model);
+  }
+
   setSentenceGap(sec: number): void {
     this.ttsEdgeClient.setSentenceGap(sec);
     this.ttsGeminiClient.setSentenceGap(sec);

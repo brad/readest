@@ -38,6 +38,10 @@ export class GeminiTTSClient extends BufferedTTSClient {
     this.#geminiProvider.setApiKey(apiKey);
   }
 
+  setModel(model: string): void {
+    this.#geminiProvider.setModel(model);
+  }
+
   override getCapabilities(): TTSCapabilities {
     return {
       ...super.getCapabilities(),

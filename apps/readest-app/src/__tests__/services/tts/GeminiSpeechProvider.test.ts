@@ -296,6 +296,40 @@ describe('GeminiSpeechProvider', () => {
     ).rejects.toThrow(SpeechSynthesisPermanentError);
   });
 
+  it('updates endpoint URL when setModel is called', async () => {
+    provider.setApiKey('test-key');
+    provider.setModel('gemini-2.0-flash');
+
+    const fakePcmB64 = 'AQID';
+    const mockResponse = {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [
+          {
+            content: {
+              parts: [{ inlineData: { mimeType: 'audio/pcm;rate=24000', data: fakePcmB64 } }],
+            },
+          },
+        ],
+      }),
+    };
+
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const controller = new AbortController();
+    await provider.synthesize(
+      { lang: 'en-US', text: 'Hello model', voice: 'Puck', pitch: 1.0 },
+      controller.signal,
+    );
+
+    const [url] = fetchMock.mock.calls[0]! as [string, RequestInit];
+    expect(url).toContain(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=test-key',
+    );
+  });
+
   it('throws immediately if signal is already aborted before fetch', async () => {
     provider.setApiKey('test-key');
 

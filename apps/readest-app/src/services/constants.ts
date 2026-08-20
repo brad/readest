@@ -456,6 +456,7 @@ export const GEMINI_PREBUILT_VOICES = [
 ] as const;
 
 export const DEFAULT_GEMINI_VOICE = 'Puck';
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 
 export const DEFAULT_TTS_CONFIG: TTSConfig = {
   ttsRate: 1.3,
@@ -470,6 +471,7 @@ export const DEFAULT_TTS_CONFIG: TTSConfig = {
   ttsPlayerStyle: 'full',
   geminiApiKey: '',
   geminiVoice: DEFAULT_GEMINI_VOICE,
+  geminiModel: DEFAULT_GEMINI_MODEL,
 };
 
 export const DEFAULT_TRANSLATOR_CONFIG: TranslatorConfig = {

@@ -1,4 +1,8 @@
-import { DEFAULT_GEMINI_VOICE, GEMINI_PREBUILT_VOICES } from '@/services/constants';
+import {
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_GEMINI_VOICE,
+  GEMINI_PREBUILT_VOICES,
+} from '@/services/constants';
 import { createWavFromPcm, padBase64 } from '@/services/tts/pcm';
 import type { TTSVoice } from '../types';
 import {
@@ -83,9 +87,16 @@ export class GeminiSpeechProvider implements SpeechProvider {
   readonly cacheable = true;
 
   #apiKey = '';
+  #model = DEFAULT_GEMINI_MODEL;
 
   setApiKey(apiKey: string): void {
     this.#apiKey = apiKey;
+  }
+
+  setModel(model: string): void {
+    if (model?.trim()) {
+      this.#model = model.trim();
+    }
   }
 
   async init(): Promise<boolean> {
@@ -109,9 +120,10 @@ export class GeminiSpeechProvider implements SpeechProvider {
       throw new SpeechSynthesisPermanentError('Gemini API key is missing.');
     }
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(
-      this.#apiKey,
-    )}`;
+    const modelName = this.#model.replace(/^models\//, '');
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+      modelName,
+    )}:generateContent?key=${encodeURIComponent(this.#apiKey)}`;
 
     const payload = {
       contents: [

@@ -346,6 +346,7 @@ export interface TTSConfig {
   ttsPlayerStyle: TTSPlayerStyle;
   geminiApiKey?: string;
   geminiVoice?: string;
+  geminiModel?: string;
 }
 
 export interface TranslatorConfig {
