@@ -25,6 +25,7 @@ export class GeminiTTSClient extends BufferedTTSClient {
     }
 
     super(provider, controller, appService);
+    this.combineMarks = true;
     this.#geminiProvider = geminiProvider;
   }
 

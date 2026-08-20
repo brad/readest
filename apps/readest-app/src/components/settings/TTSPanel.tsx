@@ -39,6 +39,7 @@ export async function validateGeminiApiKey(
         .filter(
           (m) =>
             m.name &&
+            m.name.toLowerCase().includes('tts') &&
             (!m.supportedGenerationMethods ||
               m.supportedGenerationMethods.includes('generateContent')),
         )
@@ -85,9 +86,7 @@ const TTSPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset }
   const [geminiVoice, setGeminiVoice] = useState(viewSettings.geminiVoice ?? DEFAULT_GEMINI_VOICE);
   const [geminiModel, setGeminiModel] = useState(viewSettings.geminiModel ?? DEFAULT_GEMINI_MODEL);
   const [availableModels, setAvailableModels] = useState<Array<{ value: string; label: string }>>([
-    { value: 'gemini-2.5-flash', label: 'gemini-2.5-flash' },
-    { value: 'gemini-2.0-flash', label: 'gemini-2.0-flash' },
-    { value: 'gemini-1.5-flash', label: 'gemini-1.5-flash' },
+    { value: DEFAULT_GEMINI_MODEL, label: DEFAULT_GEMINI_MODEL },
   ]);
   const [isValidatingKey, setIsValidatingKey] = useState(false);
   const [validationStatus, setValidationStatus] = useState<{
@@ -256,14 +255,14 @@ const TTSPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset }
 
         <SettingsRow label={_('Gemini Model')}>
           <SettingsSelect
-            value={geminiModel}
+            value={
+              availableModels.some((m) => m.value === geminiModel)
+                ? geminiModel
+                : availableModels[0]?.value || DEFAULT_GEMINI_MODEL
+            }
             onChange={(e) => setGeminiModel(e.target.value)}
             ariaLabel={_('Gemini Model')}
-            options={
-              availableModels.some((m) => m.value === geminiModel)
-                ? availableModels
-                : [{ value: geminiModel, label: geminiModel }, ...availableModels]
-            }
+            options={availableModels}
           />
         </SettingsRow>
 

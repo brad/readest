@@ -86,6 +86,48 @@ class AsyncQueue<T> {
   }
 }
 
+export function combineMarksByLanguage(marks: TTSMark[]): TTSMark[] {
+  if (marks.length <= 1) return marks;
+  const combined: TTSMark[] = [];
+  let currentGroup: TTSMark[] = [];
+
+  const flushGroup = () => {
+    if (currentGroup.length === 0) return;
+    if (currentGroup.length === 1) {
+      combined.push(currentGroup[0]!);
+    } else {
+      const first = currentGroup[0]!;
+      const text = currentGroup
+        .map((m) => m.text.trim())
+        .filter(Boolean)
+        .join(' ');
+      combined.push({
+        offset: first.offset ?? 0,
+        name: first.name,
+        text,
+        language: first.language,
+      });
+    }
+    currentGroup = [];
+  };
+
+  for (const mark of marks) {
+    if (currentGroup.length === 0) {
+      currentGroup.push(mark);
+    } else {
+      const prev = currentGroup[0]!;
+      if (prev.language === mark.language) {
+        currentGroup.push(mark);
+      } else {
+        flushGroup();
+        currentGroup.push(mark);
+      }
+    }
+  }
+  flushGroup();
+  return combined;
+}
+
 export class BufferedTTSClient implements TTSClient {
   name: string;
   initialized = false;
@@ -94,6 +136,7 @@ export class BufferedTTSClient implements TTSClient {
 
   protected readonly provider: SpeechProvider;
   protected voices: TTSVoice[] = [];
+  combineMarks = false;
   #primaryLang = 'en';
   #speakingLang = '';
   #currentVoiceId = '';
@@ -209,7 +252,8 @@ export class BufferedTTSClient implements TTSClient {
   };
 
   async *speak(ssml: string, signal: AbortSignal, preload = false) {
-    const { marks } = parseSSMLMarks(ssml, this.#primaryLang);
+    const { marks: rawMarks } = parseSSMLMarks(ssml, this.#primaryLang);
+    const marks = this.combineMarks ? combineMarksByLanguage(rawMarks) : rawMarks;
 
     if (preload) {
       yield* this.#preload(marks, signal);

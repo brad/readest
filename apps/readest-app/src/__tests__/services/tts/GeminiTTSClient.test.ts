@@ -169,7 +169,7 @@ describe('GeminiTTSClient', () => {
       }
       await flush();
 
-      expect(synthesizeSpy).toHaveBeenCalledTimes(3);
+      expect(synthesizeSpy).toHaveBeenCalledTimes(1);
 
       synthesizeSpy.mockClear();
 
@@ -234,7 +234,7 @@ describe('GeminiTTSClient', () => {
 
       expect(events).toEqual([{ code: 'end', message: 'Preload finished' }]);
       await flush();
-      expect(synthesizeSpy).toHaveBeenCalledTimes(3);
+      expect(synthesizeSpy).toHaveBeenCalledTimes(1);
     });
 
     test('speak with preload=false plays sentences and dispatches marks on chunk-start', async () => {
@@ -252,18 +252,18 @@ describe('GeminiTTSClient', () => {
       await flush();
 
       expect(ctx().sources.length).toBeGreaterThanOrEqual(1);
-      expect(controller.dispatchSpeakMark).toHaveBeenCalledWith(parsedMarks[0]);
-
-      await ctx().advanceTo(1.1);
-      await flush();
-
-      expect(controller.dispatchSpeakMark).toHaveBeenCalledWith(parsedMarks[1]);
+      expect(controller.dispatchSpeakMark).toHaveBeenCalledWith({
+        offset: 0,
+        name: '0',
+        text: 'First sentence. Second sentence. Third sentence.',
+        language: 'en',
+      });
 
       await ctx().advanceTo(5);
       await done;
 
       const boundaryEvents = events.filter((e) => e.code === 'boundary');
-      expect(boundaryEvents).toHaveLength(3);
+      expect(boundaryEvents).toHaveLength(1);
       expect(events.at(-1)).toEqual({ code: 'end', message: 'Speak finished' });
     });
 
@@ -289,6 +289,7 @@ describe('GeminiTTSClient', () => {
     });
 
     test('yields error code when MAX_CONSECUTIVE_SKIPS is exceeded', async () => {
+      client.combineMarks = false;
       parsedMarks = [
         { name: '0', text: 'Sentence 1', language: 'en' },
         { name: '1', text: 'Sentence 2', language: 'en' },

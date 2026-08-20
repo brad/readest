@@ -26,7 +26,7 @@ const mockViewSettings = {
   ttsHighlightOptions: { style: 'underline', color: '#ff0000' },
   geminiApiKey: 'test-api-key',
   geminiVoice: 'Puck',
-  geminiModel: 'gemini-2.5-flash',
+  geminiModel: 'gemini-3.1-flash-tts-preview',
 };
 
 const mockSettings = {
@@ -91,8 +91,11 @@ describe('validateGeminiApiKey', () => {
       ok: true,
       json: async () => ({
         models: [
-          { name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] },
-          { name: 'models/gemini-2.0-flash', supportedGenerationMethods: ['generateContent'] },
+          {
+            name: 'models/gemini-3.1-flash-tts-preview',
+            supportedGenerationMethods: ['generateContent'],
+          },
+          { name: 'models/gemini-2.5-flash-tts', supportedGenerationMethods: ['generateContent'] },
         ],
       }),
     } as unknown as Response);
@@ -100,7 +103,7 @@ describe('validateGeminiApiKey', () => {
     const result = await validateGeminiApiKey('valid-key');
     expect(result.success).toBe(true);
     expect(result.message).toContain('valid');
-    expect(result.models).toEqual(['gemini-2.5-flash', 'gemini-2.0-flash']);
+    expect(result.models).toEqual(['gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-tts']);
     expect(global.fetch).toHaveBeenCalledWith(
       'https://generativelanguage.googleapis.com/v1beta/models?key=valid-key',
       { method: 'GET' },
@@ -206,20 +209,40 @@ describe('TTSPanel Component - Gemini Voice Section', () => {
     });
   });
 
-  it('updates selected model and calls saveViewSettings on change', () => {
+  it('updates selected model and calls saveViewSettings on change', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        models: [
+          {
+            name: 'models/gemini-3.1-flash-tts-preview',
+            supportedGenerationMethods: ['generateContent'],
+          },
+          { name: 'models/gemini-2.5-flash-tts', supportedGenerationMethods: ['generateContent'] },
+        ],
+      }),
+    } as unknown as Response);
+
     render(<TTSPanel bookKey='book1' onRegisterReset={vi.fn()} />);
 
+    const testButton = screen.getByRole('button', { name: 'Test' });
+    fireEvent.click(testButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Gemini API key is valid!/i)).not.toBeNull();
+    });
+
     const modelSelect = screen.getByRole('combobox', { name: 'Gemini Model' }) as HTMLSelectElement;
-    expect(modelSelect.value).toBe('gemini-2.5-flash');
+    expect(modelSelect.value).toBe('gemini-3.1-flash-tts-preview');
 
-    fireEvent.change(modelSelect, { target: { value: 'gemini-2.0-flash' } });
+    fireEvent.change(modelSelect, { target: { value: 'gemini-2.5-flash-tts' } });
 
-    expect(modelSelect.value).toBe('gemini-2.0-flash');
+    expect(modelSelect.value).toBe('gemini-2.5-flash-tts');
     expect(mockSaveViewSettings).toHaveBeenCalledWith(
       expect.anything(),
       'book1',
       'geminiModel',
-      'gemini-2.0-flash',
+      'gemini-2.5-flash-tts',
       false,
       false,
     );

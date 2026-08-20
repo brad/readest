@@ -80,6 +80,51 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+export function isAudioContainer(data: Uint8Array, mimeType?: string): boolean {
+  if (mimeType) {
+    const lower = mimeType.toLowerCase();
+    if (
+      lower.includes('wav') ||
+      lower.includes('mp3') ||
+      lower.includes('mpeg') ||
+      lower.includes('ogg') ||
+      lower.includes('aac') ||
+      lower.includes('flac')
+    ) {
+      return true;
+    }
+  }
+  if (data.length >= 4) {
+    // RIFF (WAV)
+    if (data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46) {
+      return true;
+    }
+    // ID3 (MP3)
+    if (data[0] === 0x49 && data[1] === 0x44 && data[2] === 0x33) {
+      return true;
+    }
+    // MP3 frame sync
+    if (data[0] === 0xff && data[1] !== undefined && (data[1] & 0xe0) === 0xe0) {
+      return true;
+    }
+    // OggS
+    if (data[0] === 0x4f && data[1] === 0x67 && data[2] === 0x67 && data[3] === 0x53) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function parseSampleRate(mimeType?: string, defaultRate = 24000): number {
+  if (!mimeType) return defaultRate;
+  const match = mimeType.match(/rate=(\d+)/i);
+  if (match && match[1]) {
+    const parsed = parseInt(match[1], 10);
+    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return defaultRate;
+}
+
 export class GeminiSpeechProvider implements SpeechProvider {
   readonly id = 'gemini-tts';
   readonly label = 'Gemini Voice';
@@ -197,6 +242,7 @@ export class GeminiSpeechProvider implements SpeechProvider {
           throw new SpeechSynthesisPermanentError('No audio data received from Gemini API.');
         }
 
+        const mimeType = part.inlineData.mimeType;
         const paddedB64 = padBase64(part.inlineData.data);
         const binaryStr = atob(paddedB64);
         const pcmBytes = new Uint8Array(binaryStr.length);
@@ -204,7 +250,16 @@ export class GeminiSpeechProvider implements SpeechProvider {
           pcmBytes[i] = binaryStr.charCodeAt(i);
         }
 
-        const wavArrayBuffer = createWavFromPcm(pcmBytes, 24000, 1, 16);
+        let wavArrayBuffer: ArrayBuffer;
+        if (isAudioContainer(pcmBytes, mimeType)) {
+          wavArrayBuffer = pcmBytes.buffer.slice(
+            pcmBytes.byteOffset,
+            pcmBytes.byteOffset + pcmBytes.byteLength,
+          );
+        } else {
+          const sampleRate = parseSampleRate(mimeType, 24000);
+          wavArrayBuffer = createWavFromPcm(pcmBytes, sampleRate, 1, 16);
+        }
 
         return {
           audio: wavArrayBuffer,
