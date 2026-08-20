@@ -662,10 +662,10 @@ describe('services/constants', () => {
         expect(['male', 'female']).toContain(voice.gender);
       }
       expect(DEFAULT_GEMINI_VOICE).toBe('Puck');
-      expect(DEFAULT_GEMINI_MODEL).toBe('gemini-2.5-flash');
+      expect(DEFAULT_GEMINI_MODEL).toBe('gemini-3.1-flash-tts-preview');
       expect(DEFAULT_TTS_CONFIG.geminiApiKey).toBe('');
       expect(DEFAULT_TTS_CONFIG.geminiVoice).toBe('Puck');
-      expect(DEFAULT_TTS_CONFIG.geminiModel).toBe('gemini-2.5-flash');
+      expect(DEFAULT_TTS_CONFIG.geminiModel).toBe('gemini-3.1-flash-tts-preview');
     });
 
     it('has expected properties', () => {

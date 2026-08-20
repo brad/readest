@@ -2,12 +2,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   GeminiSpeechProvider,
   calculateBackoffWithJitter,
+  isAudioContainer,
   parseRetryAfterHeader,
+  parseSampleRate,
   sleep,
 } from '@/services/tts/providers/gemini';
 import { SpeechSynthesisPermanentError } from '@/services/tts/providers/types';
 
 describe('Gemini Utilities', () => {
+  describe('isAudioContainer and parseSampleRate', () => {
+    it('detects container audio formats by mimeType or magic bytes', () => {
+      expect(isAudioContainer(new Uint8Array([0]), 'audio/wav')).toBe(true);
+      expect(isAudioContainer(new Uint8Array([0]), 'audio/mp3')).toBe(true);
+      expect(isAudioContainer(new Uint8Array([0x52, 0x49, 0x46, 0x46]))).toBe(true);
+      expect(isAudioContainer(new Uint8Array([0x49, 0x44, 0x33, 0x00]))).toBe(true);
+      expect(isAudioContainer(new Uint8Array([0x00, 0x01, 0x02, 0x03]))).toBe(false);
+    });
+
+    it('parses sample rate from mimeType correctly', () => {
+      expect(parseSampleRate('audio/pcm;rate=16000')).toBe(16000);
+      expect(parseSampleRate('audio/pcm;rate=24000')).toBe(24000);
+      expect(parseSampleRate('audio/pcm')).toBe(24000);
+    });
+  });
   describe('parseRetryAfterHeader', () => {
     it('returns null for null, empty or invalid header values', () => {
       expect(parseRetryAfterHeader(null)).toBeNull();
@@ -160,7 +177,7 @@ describe('GeminiSpeechProvider', () => {
     const [url, options] = fetchMock.mock.calls[0]! as [string, RequestInit];
 
     expect(url).toContain(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test-key',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=test-key',
     );
     expect(options.method).toBe('POST');
     expect(options.headers).toEqual({ 'Content-Type': 'application/json' });
