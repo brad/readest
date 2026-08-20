@@ -44,6 +44,7 @@ import {
   DEFAULT_TTS_CONFIG,
   GEMINI_PREBUILT_VOICES,
   DEFAULT_GEMINI_VOICE,
+  DEFAULT_GEMINI_MODEL,
   DEFAULT_TRANSLATOR_CONFIG,
   DEFAULT_NOTE_EXPORT_CONFIG,
   DEFAULT_ANNOTATOR_CONFIG,
@@ -661,8 +662,10 @@ describe('services/constants', () => {
         expect(['male', 'female']).toContain(voice.gender);
       }
       expect(DEFAULT_GEMINI_VOICE).toBe('Puck');
+      expect(DEFAULT_GEMINI_MODEL).toBe('gemini-2.5-flash');
       expect(DEFAULT_TTS_CONFIG.geminiApiKey).toBe('');
       expect(DEFAULT_TTS_CONFIG.geminiVoice).toBe('Puck');
+      expect(DEFAULT_TTS_CONFIG.geminiModel).toBe('gemini-2.5-flash');
     });
 
     it('has expected properties', () => {

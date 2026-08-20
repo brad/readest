@@ -30,6 +30,7 @@ vi.mock('@/services/tts/GeminiTTSClient', () => ({
   GeminiTTSClient: vi.fn().mockImplementation(function (this: Record<string, unknown>) {
     Object.assign(this, createMockTTSClient('gemini-tts'), {
       setApiKey: vi.fn(),
+      setModel: vi.fn(),
       setSentenceGap: vi.fn(),
     });
   }),
@@ -1652,6 +1653,14 @@ describe('TTSController', () => {
       controller.state = 'paused';
       controller.reapplyCurrentHighlight();
       expect(content.overlayer.add).toHaveBeenCalled();
+    });
+
+    test('setGeminiApiKey and setGeminiModel delegate to ttsGeminiClient', () => {
+      controller.setGeminiApiKey('key123');
+      expect(controller.ttsGeminiClient.setApiKey).toHaveBeenCalledWith('key123');
+
+      controller.setGeminiModel('gemini-2.0-flash');
+      expect(controller.ttsGeminiClient.setModel).toHaveBeenCalledWith('gemini-2.0-flash');
     });
   });
 });

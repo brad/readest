@@ -15,6 +15,7 @@ import {
   TTSHighlightOptions,
   TTSVoicesGroup,
 } from '@/services/tts';
+import { DEFAULT_GEMINI_MODEL } from '@/services/constants';
 import { DEFAULT_SENTENCE_GAP_SEC } from '@/services/tts/EdgeTTSClient';
 import { DEFAULT_PARAGRAPH_GAP_SEC } from '@/services/tts/TTSController';
 import { eventDispatcher } from '@/utils/event';
@@ -752,6 +753,12 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     }
   }, [viewSettings?.geminiApiKey]);
 
+  useEffect(() => {
+    if (ttsControllerRef.current && viewSettings?.geminiModel !== undefined) {
+      ttsControllerRef.current.setGeminiModel(viewSettings.geminiModel ?? DEFAULT_GEMINI_MODEL);
+    }
+  }, [viewSettings?.geminiModel]);
+
   // handleStop (defined before handleTTSSpeak/handleTTSStop which reference it)
   const handleStop = useCallback(
     async (bookKey: string) => {
@@ -940,6 +947,7 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
           ttsController.setLang(lang);
           ttsController.setRate(viewSettings.ttsRate);
           ttsController.setGeminiApiKey(viewSettings.geminiApiKey ?? '');
+          ttsController.setGeminiModel(viewSettings.geminiModel ?? DEFAULT_GEMINI_MODEL);
           ttsController.setSentenceGap(viewSettings.ttsSentenceGap ?? DEFAULT_SENTENCE_GAP_SEC);
           ttsController.setParagraphGap(viewSettings.ttsParagraphGap ?? DEFAULT_PARAGRAPH_GAP_SEC);
           // Narrating a selection is an ordinary session started at that point,
