@@ -22,7 +22,7 @@ By the end of Phase 5B:
 | Test File Path | Description & Test Scenarios |
 | --- | --- |
 | `apps/readest-app/src/__tests__/services/tts/GeminiTTSClient.test.ts` | Integration tests for `GeminiTTSClient` initialization, `getAllVoices()`, `speak()` iterator, preloading, cache hits via `CachingProvider`, and `MAX_CONSECUTIVE_SKIPS` error yielding. |
-| `apps/readest-app/src/__tests__/components/settings/TTSPanel.test.tsx` | Component tests for Gemini section rendering in `TTSPanel`, entering API Key, selecting voice, clicking "Test" validation button, and UI feedback states. |
+| `apps/readest-app/src/__tests__/components/settings/TTSPanel.test.tsx` | Component tests for Gemini section rendering in `TTSPanel`, entering API Key, dynamic model dropdown selection from `v1beta/models`, selecting voice, clicking "Test" validation button, and UI feedback states. |
 
 ---
 

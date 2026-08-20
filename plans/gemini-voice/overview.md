@@ -9,7 +9,7 @@ This master plan outlines the step-by-step roadmap for implementing **Gemini Voi
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    User Interface                       │
-│  - Settings: API Key Entry, Voice & Pitch Selection     │
+│  - Settings: API Key, Dynamic Model List, Voice & Pitch │
 │  - TTS Controls: Play, Pause, Skip, Preload Indicator   │
 └───────────────────────────┬─────────────────────────────┘
                             │
@@ -37,25 +37,26 @@ Below is the sequential breakdown of execution phases. Each phase represents a s
 
 ---
 
-### Phase 1: Settings, API Key Management & Configuration UI
+### Phase 1: Settings, API Key Management, Dynamic Model Retrieval & Configuration UI
 *Target Plan File: `plans/gemini-voice/phase1.md`*
 
 #### Objective
-Enable users to configure Gemini Voice preferences, securely store their API key, select Gemini voices within Readest settings, and ensure API keys are stripped during backup export.
+Enable users to configure Gemini Voice preferences, securely store their API key, retrieve available models via Google Gemini API (`v1beta/models`), select specific models (`geminiModel`) and voices (`geminiVoice`) in Readest settings, and ensure API keys are stripped during backup export.
 
 #### Key Deliverables
 1. **Types & Default Configuration**:
-   - Update `TTSConfig` interface in `apps/readest-app/src/types/book.ts` to include Gemini-specific fields (`geminiApiKey`, `geminiVoice`).
+   - Update `TTSConfig` interface in `apps/readest-app/src/types/book.ts` to include Gemini-specific fields (`geminiApiKey`, `geminiVoice`, `geminiModel`).
    - Define defaults in `DEFAULT_TTS_CONFIG` within `apps/readest-app/src/services/constants.ts`.
    - Add `ttsConfig.geminiApiKey` to `BACKUP_SETTINGS_CREDENTIAL_FIELDS` in `apps/readest-app/src/services/backupService.ts` to prevent unencrypted exports.
-2. **Settings UI Component**:
+2. **Settings UI Component & Dynamic Model Fetching**:
    - Add Gemini Voice configuration UI under TTS / AI Settings.
-   - Include API Key input field (masked/password input) and voice selection dropdown (e.g., Puck, Charon, Kore, Fenrir, Aoede).
-3. **API Key Validation**:
-   - Implement a lightweight validation test button or check using the Gemini REST endpoint (`v1beta/models`).
+   - Include API Key input field (masked/password input), a dynamic Model selector dropdown populated by calling `v1beta/models?key={apiKey}` (to prevent 404 model errors across model revisions), and voice selection dropdown (e.g., Puck, Charon, Kore, Fenrir, Aoede).
+3. **API Key Validation & Model Listing**:
+   - Implement a validation button or check that queries the Gemini REST endpoint (`v1beta/models`), populates/refreshes available models in settings, and gives feedback on key validity.
 
 #### Acceptance Criteria
-- API Key and voice selection persist across app reloads via `settingsService`.
+- API Key, selected model, and voice selection persist across app reloads via `settingsService`.
+- Querying `v1beta/models` populates available models dynamically in the settings dropdown.
 - User receives immediate UI feedback when validating an API key.
 - Unencrypted backups strip `geminiApiKey` unless credentials are explicitly included.
 
@@ -71,8 +72,9 @@ Build the core `GeminiTTSClient` class conforming to the `TTSClient` interface a
 1. **Audio Utility & PCM WAV Header Generator**:
    - Maintain/refine raw PCM (24kHz, mono, 16-bit) to RIFF/WAVE header conversion in `apps/readest-app/src/services/tts/pcm.ts`.
    - Ensure Base64 string decoding handles proper padding (`=`) before calling `atob()` to prevent browser decoding errors.
-2. **`GeminiTTSClient` Request Schema**:
+2. **`GeminiTTSClient` Dynamic Request Schema & Endpoint**:
    - Implement client in `apps/readest-app/src/services/tts/GeminiTTSClient.ts`.
+   - Dynamically construct endpoint URLs using the selected `geminiModel` (`v1beta/models/${model}:generateContent?key=${apiKey}`).
    - Ensure all request payload fields use `camelCase` required by Gemini `v1beta/generateContent` API (e.g., `responseModalities`, `speechConfig`, `voiceConfig`, `prebuiltVoiceConfig`, `voiceName`).
 3. **Playback & Abort Handling**:
    - Manage `HTMLAudioElement` / `Audio` playback.
@@ -132,7 +134,7 @@ Provide persistent local audio caching, offline pre-downloading, and section pac
 
 #### Key Deliverables
 1. **Audio Caching Layer**:
-   - Store synthesized WAVE audio buffers in local store (`BookTTSCacheStore` / SQLite) via `CachingProvider`, indexed deterministically by prompt text, language, voice, and pitch.
+   - Store synthesized WAVE audio buffers in local store (`BookTTSCacheStore` / SQLite) via `CachingProvider`, indexed deterministically by prompt text, language, model (`geminiModel`), voice, and pitch.
    - Skip network fetch if synthesized audio already exists in cache.
 2. **Offline Pre-downloading & Section Pack Compaction**:
    - Support headless chapter downloading (`warmSentence`) and section compaction (`compact`).
@@ -151,8 +153,8 @@ Test low-level PCM audio conversion utilities, Gemini REST request schema serial
 
 #### Key Deliverables
 1. **Audio PCM Utility Tests**: Verify `padBase64` padding normalization and `createWavFromPcm` RIFF/WAVE header generation in `tts-pcm.test.ts`.
-2. **Provider Tests**: Verify `GeminiSpeechProvider` camelCase REST payload serialization, HTTP 200/400/401/403/429/5xx parsing, and `Retry-After` backoff handling in `GeminiSpeechProvider.test.ts`.
-3. **Configuration & Security Tests**: Verify `DEFAULT_TTS_CONFIG` defaults and `geminiApiKey` credential sanitization in `constants.test.ts` and `backup-settings.test.ts`.
+2. **Provider Tests**: Verify `GeminiSpeechProvider` camelCase REST payload serialization, dynamic endpoint construction (`v1beta/models/${model}:generateContent`), HTTP 200/400/401/403/404/429/5xx parsing, and `Retry-After` backoff handling in `GeminiSpeechProvider.test.ts`.
+3. **Configuration & Security Tests**: Verify `DEFAULT_TTS_CONFIG` defaults (`geminiApiKey`, `geminiVoice`, `geminiModel`) and `geminiApiKey` credential sanitization in `constants.test.ts` and `backup-settings.test.ts`.
 
 #### Acceptance Criteria
 - Unit tests for PCM utilities, Gemini provider serialization, constants, and backup sanitization pass cleanly.
@@ -166,8 +168,8 @@ Test low-level PCM audio conversion utilities, Gemini REST request schema serial
 Test `GeminiTTSClient` lifecycle, preloading queue execution, cache integration, UI settings panel controls, and verify repository quality across the monorepo.
 
 #### Key Deliverables
-1. **Integration Tests**: Verify `GeminiTTSClient` initialization, voice listing, preloading queue execution, cache hit/miss behavior, and `code: 'error'` loop termination in `GeminiTTSClient.test.ts`.
-2. **UI & Settings Tests**: Verify `TTSPanel.tsx` rendering, API key entry masking, voice dropdown selection, and key validation triggering in `TTSPanel.test.tsx`.
+1. **Integration Tests**: Verify `GeminiTTSClient` initialization, voice listing, preloading queue execution, cache hit/miss behavior (including model in key), and `code: 'error'` loop termination in `GeminiTTSClient.test.ts`.
+2. **UI & Settings Tests**: Verify `TTSPanel.tsx` rendering, API key entry masking, model dropdown fetching and selection, voice dropdown selection, and key validation triggering in `TTSPanel.test.tsx`.
 3. **Repository Verification**: Execute Biome formatting (`pnpm exec biome check --write`), strict TypeScript checking (`NODE_OPTIONS="--max-old-space-size=4096" pnpm exec tsc --noEmit`), and full test suite execution (`pnpm test`).
 
 #### Acceptance Criteria

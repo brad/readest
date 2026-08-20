@@ -40,7 +40,7 @@ Permanent errors indicate that retrying the exact same request with the same API
 
 - **HTTP 400 Bad Request**: Malformed JSON, unsupported prompt format, or invalid voice parameter.
 - **HTTP 401 Unauthorized / HTTP 403 Forbidden**: Invalid, expired, or unauthenticated Gemini API key.
-- **HTTP 404 Not Found**: Model endpoint or resource does not exist (e.g. invalid model name).
+- **HTTP 404 Not Found**: Model endpoint or resource does not exist (e.g. invalid model name or retired model revision). Emits model re-selection prompt to user.
 - **Empty Audio Data Response**: API returns `HTTP 200` but candidate parts contain no `inlineData` audio payload.
 
 When `SpeechSynthesisPermanentError` is thrown:

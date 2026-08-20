@@ -97,8 +97,8 @@ export function createWavFromPcm(
 
 The Gemini REST API `v1beta/generateContent` endpoint requires **strict camelCase** for all configuration fields. Snake_case fields (e.g. `response_modalities`) are silently ignored or rejected by Google servers.
 
-### 4.1 Request Schema (`v1beta/generateContent`)
-- **Endpoint**: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+### 4.1 Dynamic Endpoint & Request Schema (`v1beta/generateContent`)
+- **Endpoint**: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}` (where `${model}` is dynamically populated from `geminiModel` in settings, e.g. `gemini-2.5-flash`)
 - **HTTP Method**: `POST`
 - **Headers**: `Content-Type: application/json`
 
@@ -175,8 +175,8 @@ Implemented in `apps/readest-app/src/services/tts/TTSController.ts`.
    - Write unit tests in `apps/readest-app/src/__tests__/services/tts/pcm.test.ts`.
 2. **Step 2: `GeminiSpeechProvider` Implementation**
    - Create `apps/readest-app/src/services/tts/providers/gemini.ts`.
-   - Implement `synthesize()` with camelCase schema formatting and REST API call.
-   - Write unit tests in `apps/readest-app/src/__tests__/services/tts/GeminiSpeechProvider.test.ts`.
+   - Implement `synthesize()` dynamically building endpoint `v1beta/models/${model}:generateContent` using configured `geminiModel` and camelCase schema formatting.
+   - Write unit tests in `apps/readest-app/src/__tests__/services/tts/GeminiSpeechProvider.test.ts` verifying dynamic model URL construction.
 3. **Step 3: `GeminiTTSClient` Implementation**
    - Create `apps/readest-app/src/services/tts/GeminiTTSClient.ts`.
    - Wrap `GeminiSpeechProvider` and configure `CachingProvider` support.
